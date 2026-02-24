@@ -47,7 +47,7 @@ import {
 import {
   PermissionsAndroid
 } from 'react-native';
-import SimCardsManager from 'react-native-sim-cards-manager';
+// import SimCardsManager from 'react-native-sim-cards-manager';
 const { SmsSender } = NativeModules;
 
 

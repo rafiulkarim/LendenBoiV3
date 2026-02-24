@@ -300,6 +300,34 @@ const Schema = () => {
 
   }
 
+  // const apiCall = () => {
+  //   fetch('http://bulksmsbd.net/api/getBalanceApi?api_key=1nWtRTLWI95Wufjyp07F')
+  //     .then(response => response.json())
+  //     .then(data => {
+  //       console.log('API Response:', data);
+  //     })
+  //     .catch(error => {
+  //       console.error('Error fetching API data:', error);
+  //     });
+  // }
+
+  // const apiCall = () => {
+  //   let phoneNumber = "01962341558"
+  //   const textSMS1 = `বাকি: ৳১০০০০\nসুলাইমান স্টিল অ্যান্ড গ্লাস অ্যালুমিনিয়াম দরজা`;
+
+  //   // Properly encode the entire message
+  //   const encodedMessage = encodeURIComponent(textSMS1);
+
+  //   fetch(`http://bulksmsbd.net/api/smsapi?api_key=1nWtRTLWI95Wufjyp07F&type=text&number=${phoneNumber}&senderid=8809648906447&message=${encodedMessage}`)
+  //     .then(response => response.json())
+  //     .then(data => {
+  //       console.log('API Response:', data);
+  //     })
+  //     .catch(error => {
+  //       console.error('Error fetching API data:', error);
+  //     });
+  // }
+
   const allTableData = () => {
     db.transaction(function (txn) {
       // txn.executeSql(
@@ -339,6 +367,11 @@ const Schema = () => {
           onPress={() => allTableData()} mode='contained'
         >All table Data</Button>
       </View>
+
+      {/* <Button style={{
+      }}
+        onPress={() => apiCall()} mode='contained'
+      >Check Balance</Button> */}
     </>
   )
 }

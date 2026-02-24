@@ -1,7 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import * as eva from '@eva-design/eva';
-import { ApplicationProvider, IconRegistry, Button, Card, Layout, Text } from '@ui-kitten/components';
-import { EvaIconsPack } from '@ui-kitten/eva-icons';
 import { default as theme } from './theme.json'; // optional custom theme
 import { View, StyleSheet, Image, StatusBar } from 'react-native';
 
@@ -83,7 +80,7 @@ export default function App({ navigation }) {
   return (
     <AuthContext.Provider value={{ singIn, singOut, myToken: isLogedIn, logedInUserInfo: userInfo }}>
       <StatusBar backgroundColor='#00A8A8' />
-      <IconRegistry icons={EvaIconsPack} />
+      {/* <IconRegistry icons={EvaIconsPack} /> */}
       {/* <ApplicationProvider
         {...eva}
         theme={{ ...eva.light, ...theme }}

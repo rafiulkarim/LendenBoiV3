@@ -35,7 +35,7 @@ import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { openDatabase } from 'react-native-sqlite-storage';
 import { IdGenerator } from '../../Helpers/Generator/IdGenerator';
 import moment from 'moment';
-import SimCardsManager from 'react-native-sim-cards-manager';
+// import SimCardsManager from 'react-native-sim-cards-manager';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 

@@ -32,7 +32,6 @@ import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { openDatabase } from 'react-native-sqlite-storage';
 import { IdGenerator } from '../../Helpers/Generator/IdGenerator';
 import moment from 'moment';
-import SimCardsManager from 'react-native-sim-cards-manager';
 
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 const { SmsSender } = NativeModules;
@@ -116,256 +115,8 @@ export default function AddClient({ navigation }) {
     setSnackbarVisible(true);
   };
 
-  // Create sms_settings table if not exists
-  // const createSmsSettingsTable = () => {
-  //   db.transaction(tx => {
-  //     tx.executeSql(
-  //       `CREATE TABLE IF NOT EXISTS sms_settings (
-  //         id TEXT PRIMARY KEY,
-  //         shop_id TEXT,
-  //         selected_sim_id TEXT,
-  //         sim_display_name TEXT,
-  //         subscription_id TEXT,
-  //         is_no_sim_option INTEGER DEFAULT 0,
-  //         created_at TEXT,
-  //         updated_at TEXT,
-  //         FOREIGN KEY (shop_id) REFERENCES shops(id)
-  //       )`,
-  //       [],
-  //       () => {
-  //         console.log('sms_settings table created or already exists');
-  //       },
-  //       (error) => {
-  //         console.error('Error creating sms_settings table:', error);
-  //       }
-  //     );
-  //   });
-  // };
-
-  // Load saved SIM selection from database
-  const loadSavedSimSelection = () => {
-    return new Promise((resolve) => {
-      db.transaction(tx => {
-        tx.executeSql(
-          'SELECT * FROM sms_settings WHERE shop_id = ? LIMIT 1',
-          [logedInUserInfo?.shop[0]?.id],
-          (tx, results) => {
-            if (results.rows.length > 0) {
-              const savedSim = results.rows.item(0);
-              setSavedSimData(savedSim);
-              console.log('Loaded saved SIM data:', savedSim);
-              resolve(savedSim);
-            } else {
-              console.log('No saved SIM data found');
-              resolve(null);
-            }
-          },
-          (tx, error) => {
-            console.error('Error loading saved SIM data:', error);
-            resolve(null);
-          }
-        );
-      });
-    });
-  };
-
-  // Save SIM selection to database
-  const saveSimSelectionToDb = (simData) => {
-    return new Promise((resolve, reject) => {
-      db.transaction(tx => {
-        // First check if setting exists
-        tx.executeSql(
-          'SELECT * FROM sms_settings WHERE shop_id = ?',
-          [logedInUserInfo?.shop[0]?.id],
-          (tx, checkResults) => {
-            if (checkResults.rows.length > 0) {
-              // Update existing record
-              tx.executeSql(
-                'UPDATE sms_settings SET selected_sim_id = ?, sim_display_name = ?, subscription_id = ?, is_no_sim_option = ?, updated_at = ? WHERE shop_id = ?',
-                [
-                  simData.id,
-                  simData.displayName,
-                  simData.subscriptionId || null,
-                  simData.isNoSimOption ? 1 : 0,
-                  moment().format('YYYY-MM-DD HH:mm:ss'),
-                  logedInUserInfo?.shop[0]?.id
-                ],
-                (tx, updateResults) => {
-                  console.log('SIM selection updated in database');
-                  console.log(simData)
-                  setSavedSimData(simData);
-                  resolve(true);
-                },
-                (tx, updateError) => {
-                  console.error('Error updating SIM selection:', updateError);
-                  reject(updateError);
-                }
-              );
-            } else {
-              // Insert new record
-              const settingId = IdGenerator(logedInUserInfo.id);
-              tx.executeSql(
-                'INSERT INTO sms_settings (id, shop_id, selected_sim_id, sim_display_name, subscription_id, is_no_sim_option, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [
-                  settingId,
-                  logedInUserInfo?.shop[0]?.id,
-                  simData.id,
-                  simData.displayName,
-                  simData.subscriptionId || null,
-                  simData.isNoSimOption ? 1 : 0,
-                  moment().format('YYYY-MM-DD HH:mm:ss'),
-                  moment().format('YYYY-MM-DD HH:mm:ss')
-                ],
-                (tx, insertResults) => {
-                  console.log('SIM selection saved to database');
-                  console.log(simData)
-                  setSavedSimData(simData);
-                  resolve(true);
-                },
-                (tx, insertError) => {
-                  console.error('Error saving SIM selection:', insertError);
-                  reject(insertError);
-                }
-              );
-            }
-          },
-          (tx, checkError) => {
-            console.error('Error checking SIM settings:', checkError);
-            reject(checkError);
-          }
-        );
-      });
-    });
-  };
-
-  // Fetch SIM cards with "No SIM" option
-  const fetchSimCards = async () => {
-    try {
-      setIsLoadingSims(true);
-
-      // Create table if not exists
-      // createSmsSettingsTable();
-
-      // Load saved SIM selection
-      const savedSim = await loadSavedSimSelection();
-
-      console.log('savedSim', savedSim)
-
-      const sims = await SimCardsManager.getSimCards();
-
-      // Format SIM cards data
-      const formattedSims = sims.map((sim, index) => ({
-        ...sim,
-        id: sim.subscriptionId || index.toString(),
-        displayName: sim.displayName || sim.carrierName || `SIM ${index + 1}`,
-        isActive: true,
-        phoneNumber: sim.phoneNumber || sim.number || 'নম্বর নেই',
-        isNoSimOption: false // Mark as real SIM card
-      }));
-
-      // Add "No SIM card selected" option as the first item
-      const noSimOption = {
-        id: 'no-sim-selected',
-        displayName: 'SMS পাঠাবেন না',
-        isActive: false,
-        phoneNumber: null,
-        isNoSimOption: true,
-        subscriptionId: null
-      };
-
-      // Add no SIM option to the beginning of the list
-      const allOptions = [noSimOption, ...formattedSims];
-
-      setSimCards(allOptions);
-
-      console.log(allOptions)
-
-      // Set selected SIM based on saved data or default to "No SIM" option
-      if (savedSim) {
-        // Find matching SIM from the list
-        let selected = allOptions.find(sim =>
-          sim.id === savedSim.selected_sim_id ||
-          (sim.isNoSimOption && savedSim.is_no_sim_option === 1)
-        );
-
-        console.log('selected', selected)
-
-        if (selected) {
-          console.log('comes')
-          setSelectedSim(selected);
-        } else {
-          // If saved SIM not found in current list, default to "No SIM"
-          setSelectedSim(noSimOption);
-          // Update database with default selection
-          // saveSimSelectionToDb(noSimOption).catch(console.error);
-        }
-      } else {
-        // No saved data, default to "No SIM" option
-        setSelectedSim(noSimOption);
-        // Save default to database
-        // saveSimSelectionToDb(noSimOption).catch(console.error);
-      }
-
-    } catch (error) {
-      console.error('Error fetching SIM cards:', error);
-
-      // Even if error occurs, create the no SIM option
-      const noSimOption = {
-        id: 'no-sim-selected',
-        displayName: 'SMS পাঠাবেন না',
-        isActive: false,
-        phoneNumber: null,
-        isNoSimOption: true,
-        subscriptionId: null
-      };
-
-      setSimCards([noSimOption]);
-      setSelectedSim(noSimOption);
-
-      // Try to save default to database
-      // saveSimSelectionToDb(noSimOption).catch(console.error);
-
-      showSnackbar('SIM তথ্য লোড করতে সমস্যা হয়েছে', 'error');
-    } finally {
-      setIsLoadingSims(false);
-    }
-  };
-
-  // console.log(selectedSim);
-
-  // Request SMS permissions
-  const requestPermissions = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.SEND_SMS,
-          PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
-        ]);
-
-        const smsGranted = granted[PermissionsAndroid.PERMISSIONS.SEND_SMS] === PermissionsAndroid.RESULTS.GRANTED;
-        const phoneGranted = granted[PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE] === PermissionsAndroid.RESULTS.GRANTED;
-
-        return smsGranted && phoneGranted;
-      } catch (err) {
-        console.error('Permission request error:', err);
-        return false;
-      }
-    }
-    return true;
-  };
-
   // Send SMS function
   const sendSms = async (phoneNumber, message) => {
-    // Check if "No SIM card selected" option is chosen
-    if (selectedSim?.isNoSimOption) {
-      console.log('SMS sending skipped - No SIM selected option chosen');
-      return true; // Return true since user chose not to send SMS
-    }
-
-    if (!selectedSim) {
-      showSnackbar('দয়া করে একটি SIM নির্বাচন করুন', 'error');
-      return false;
-    }
 
     try {
       // Request permissions first
@@ -897,9 +648,9 @@ export default function AddClient({ navigation }) {
   }, []);
 
   // Fetch SIM cards on mount
-  useEffect(() => {
-    fetchSimCards();
-  }, []);
+  // useEffect(() => {
+  //   fetchSimCards();
+  // }, []);
 
   // Render contact item
   const renderContactItem = ({ item }) => (
@@ -940,144 +691,144 @@ export default function AddClient({ navigation }) {
     </TouchableOpacity>
   );
 
-  // Render SIM selection modal
-  const renderSimSelectionModal = () => (
-    <Modal
-      visible={showSimSelection}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setShowSimSelection(false)}
-    >
-      <View style={styles.simModalOverlay}>
-        <View style={styles.simModalContainer}>
-          {/* Modal Header */}
-          <View style={styles.simModalHeader}>
-            <Text style={styles.simModalTitle}>SMS পাঠানোর SIM নির্বাচন করুন</Text>
-            <TouchableOpacity
-              onPress={() => setShowSimSelection(false)}
-              style={styles.simModalCloseBtn}
-            >
-              <Text style={styles.simModalCloseText}>✕</Text>
-            </TouchableOpacity>
-          </View>
+  // // Render SIM selection modal
+  // const renderSimSelectionModal = () => (
+  //   <Modal
+  //     visible={showSimSelection}
+  //     animationType="slide"
+  //     transparent={true}
+  //     onRequestClose={() => setShowSimSelection(false)}
+  //   >
+  //     <View style={styles.simModalOverlay}>
+  //       <View style={styles.simModalContainer}>
+  //         {/* Modal Header */}
+  //         <View style={styles.simModalHeader}>
+  //           <Text style={styles.simModalTitle}>SMS পাঠানোর SIM নির্বাচন করুন</Text>
+  //           <TouchableOpacity
+  //             onPress={() => setShowSimSelection(false)}
+  //             style={styles.simModalCloseBtn}
+  //           >
+  //             <Text style={styles.simModalCloseText}>✕</Text>
+  //           </TouchableOpacity>
+  //         </View>
 
-          {/* SIM Cards List */}
-          <ScrollView style={styles.simListContainer}>
-            {isLoadingSims ? (
-              <View style={styles.simLoadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={styles.simLoadingText}>SIM লোড হচ্ছে...</Text>
-              </View>
-            ) : simCards.length > 0 ? (
-              simCards.map((sim) => (
-                <TouchableOpacity
-                  key={sim.id}
-                  style={[
-                    styles.simCardItem,
-                    selectedSim?.id === sim.id && styles.simCardItemSelected,
-                    sim.isNoSimOption && styles.noSimOptionItem
-                  ]}
-                  onPress={() => handleSimSelect(sim)}
-                >
-                  <View style={styles.simCardContent}>
-                    <View style={styles.simCardLeft}>
-                      <View style={[
-                        styles.simIconContainer,
-                        {
-                          backgroundColor: sim.isNoSimOption
-                            ? '#f8f9fa'
-                            : (sim.isActive ? colors.primaryLightest : '#f0f0f0')
-                        }
-                      ]}>
-                        <Icon
-                          name={sim.isNoSimOption ? "message-off" : "sim"}
-                          size={24}
-                          color={sim.isNoSimOption ? '#888' : (sim.isActive ? colors.primary : '#888')}
-                        />
-                      </View>
-                      <View style={styles.simInfo}>
-                        <Text style={[
-                          styles.simName,
-                          selectedSim?.id === sim.id && styles.simNameSelected,
-                          sim.isNoSimOption && styles.noSimOptionText
-                        ]}>
-                          {sim.displayName}
-                        </Text>
-                        {!sim.isNoSimOption && sim.isActive && (
-                          <View style={styles.activeBadge}>
-                            <Text style={styles.activeBadgeText}>সক্রিয়</Text>
-                          </View>
-                        )}
-                        {sim.isNoSimOption && (
-                          <Text style={styles.noSimDescription}>
-                            শুধুমাত্র কাস্টমার যোগ করুন, SMS পাঠাবেন না
-                          </Text>
-                        )}
-                      </View>
-                    </View>
+  //         {/* SIM Cards List */}
+  //         <ScrollView style={styles.simListContainer}>
+  //           {isLoadingSims ? (
+  //             <View style={styles.simLoadingContainer}>
+  //               <ActivityIndicator size="large" color={colors.primary} />
+  //               <Text style={styles.simLoadingText}>SIM লোড হচ্ছে...</Text>
+  //             </View>
+  //           ) : simCards.length > 0 ? (
+  //             simCards.map((sim) => (
+  //               <TouchableOpacity
+  //                 key={sim.id}
+  //                 style={[
+  //                   styles.simCardItem,
+  //                   selectedSim?.id === sim.id && styles.simCardItemSelected,
+  //                   sim.isNoSimOption && styles.noSimOptionItem
+  //                 ]}
+  //                 onPress={() => handleSimSelect(sim)}
+  //               >
+  //                 <View style={styles.simCardContent}>
+  //                   <View style={styles.simCardLeft}>
+  //                     <View style={[
+  //                       styles.simIconContainer,
+  //                       {
+  //                         backgroundColor: sim.isNoSimOption
+  //                           ? '#f8f9fa'
+  //                           : (sim.isActive ? colors.primaryLightest : '#f0f0f0')
+  //                       }
+  //                     ]}>
+  //                       <Icon
+  //                         name={sim.isNoSimOption ? "message-off" : "sim"}
+  //                         size={24}
+  //                         color={sim.isNoSimOption ? '#888' : (sim.isActive ? colors.primary : '#888')}
+  //                       />
+  //                     </View>
+  //                     <View style={styles.simInfo}>
+  //                       <Text style={[
+  //                         styles.simName,
+  //                         selectedSim?.id === sim.id && styles.simNameSelected,
+  //                         sim.isNoSimOption && styles.noSimOptionText
+  //                       ]}>
+  //                         {sim.displayName}
+  //                       </Text>
+  //                       {!sim.isNoSimOption && sim.isActive && (
+  //                         <View style={styles.activeBadge}>
+  //                           <Text style={styles.activeBadgeText}>সক্রিয়</Text>
+  //                         </View>
+  //                       )}
+  //                       {sim.isNoSimOption && (
+  //                         <Text style={styles.noSimDescription}>
+  //                           শুধুমাত্র কাস্টমার যোগ করুন, SMS পাঠাবেন না
+  //                         </Text>
+  //                       )}
+  //                     </View>
+  //                   </View>
 
-                    <View style={styles.simCardRight}>
-                      {selectedSim?.id === sim.id ? (
-                        <View style={styles.selectedIndicator}>
-                          <Icon
-                            name="check-circle"
-                            size={24}
-                            color={colors.success}
-                          />
-                        </View>
-                      ) : (
-                        <View style={styles.unselectedIndicator}>
-                          <Icon
-                            name="circle"
-                            size={24}
-                            color="#ddd"
-                          />
-                        </View>
-                      )}
-                    </View>
-                  </View>
+  //                   <View style={styles.simCardRight}>
+  //                     {selectedSim?.id === sim.id ? (
+  //                       <View style={styles.selectedIndicator}>
+  //                         <Icon
+  //                           name="check-circle"
+  //                           size={24}
+  //                           color={colors.success}
+  //                         />
+  //                       </View>
+  //                     ) : (
+  //                       <View style={styles.unselectedIndicator}>
+  //                         <Icon
+  //                           name="circle"
+  //                           size={24}
+  //                           color="#ddd"
+  //                         />
+  //                       </View>
+  //                     )}
+  //                   </View>
+  //                 </View>
 
-                  <Divider style={styles.simDivider} />
-                </TouchableOpacity>
-              ))
-            ) : (
-              <View style={styles.noSimContainer}>
-                <Icon
-                  name="sim-card-alert"
-                  size={60}
-                  color="#ccc"
-                />
-                <Text style={styles.noSimText}>কোন SIM কার্ড পাওয়া যায়নি</Text>
-                <Text style={styles.noSimSubText}>
-                  আপনার ডিভাইসে SIM কার্ড ইন্সার্ট করা নেই অথবা অনুমতি প্রয়োজন
-                </Text>
-              </View>
-            )}
-          </ScrollView>
+  //                 <Divider style={styles.simDivider} />
+  //               </TouchableOpacity>
+  //             ))
+  //           ) : (
+  //             <View style={styles.noSimContainer}>
+  //               <Icon
+  //                 name="sim-card-alert"
+  //                 size={60}
+  //                 color="#ccc"
+  //               />
+  //               <Text style={styles.noSimText}>কোন SIM কার্ড পাওয়া যায়নি</Text>
+  //               <Text style={styles.noSimSubText}>
+  //                 আপনার ডিভাইসে SIM কার্ড ইন্সার্ট করা নেই অথবা অনুমতি প্রয়োজন
+  //               </Text>
+  //             </View>
+  //           )}
+  //         </ScrollView>
 
-          {/* Footer Actions */}
-          <View style={styles.simModalFooter}>
-            <Button
-              mode="outlined"
-              style={styles.simModalCancelBtn}
-              labelStyle={{ color: colors.textPrimary }}
-              onPress={() => setShowSimSelection(false)}
-            >
-              বাতিল
-            </Button>
-            <Button
-              mode="contained"
-              style={styles.simModalConfirmBtn}
-              labelStyle={{ color: '#fff' }}
-              onPress={() => setShowSimSelection(false)}
-            >
-              বন্ধ করুন
-            </Button>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
+  //         {/* Footer Actions */}
+  //         <View style={styles.simModalFooter}>
+  //           <Button
+  //             mode="outlined"
+  //             style={styles.simModalCancelBtn}
+  //             labelStyle={{ color: colors.textPrimary }}
+  //             onPress={() => setShowSimSelection(false)}
+  //           >
+  //             বাতিল
+  //           </Button>
+  //           <Button
+  //             mode="contained"
+  //             style={styles.simModalConfirmBtn}
+  //             labelStyle={{ color: '#fff' }}
+  //             onPress={() => setShowSimSelection(false)}
+  //           >
+  //             বন্ধ করুন
+  //           </Button>
+  //         </View>
+  //       </View>
+  //     </View>
+  //   </Modal>
+  // );
 
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>
@@ -1260,61 +1011,6 @@ export default function AddClient({ navigation }) {
             </View>
           </View>
 
-          {/* SMS Settings Section */}
-          <View style={styles.smsSettingsSection}>
-            <Text style={styles.sectionTitle}>SMS সেটিংস</Text>
-
-            <TouchableOpacity
-              style={styles.simSelectionCard}
-              onPress={() => setShowSimSelection(true)}
-            >
-              {selectedSim ? (
-                <View style={styles.selectedSimContent}>
-                  <View style={styles.selectedSimLeft}>
-                    <Icon
-                      name={selectedSim.isNoSimOption ? "message-off" : "sim"}
-                      size={28}
-                      color={selectedSim.isNoSimOption ? "#888" : colors.primary}
-                    />
-                    <View style={styles.selectedSimInfo}>
-                      <Text style={styles.selectedSimName}>
-                        {selectedSim.displayName}
-                      </Text>
-                      <Text style={[
-                        styles.selectedSimStatus,
-                        { color: selectedSim.isNoSimOption ? '#666' : colors.success }
-                      ]}>
-                        {selectedSim.isNoSimOption
-                          ? 'SIM সিলেক্ট করা নেই'
-                          : (selectedSim.isActive ? 'সক্রিয় SIM' : 'নিষ্ক্রিয় SIM')}
-                      </Text>
-                    </View>
-                  </View>
-                  <Icon
-                    name="chevron-right"
-                    size={24}
-                    color={colors.primaryLight}
-                  />
-                </View>
-              ) : (
-                <View style={styles.noSimSelected}>
-                  <Icon
-                    name="sim"
-                    size={28}
-                    color="#888"
-                  />
-                  <Text style={styles.selectSimText}>SIM নির্বাচন করুন</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            <Text style={styles.simNote}>
-              {selectedSim?.isNoSimOption
-                ? 'কোন SMS পাঠানো হবে না, শুধুমাত্র কাস্টমার তথ্য সংরক্ষণ করা হবে'
-                : 'নির্বাচিত SIM দিয়ে স্বাগত বার্তা পাঠানো হবে'}
-            </Text>
-          </View>
-
         </ScrollView>
 
         {/* Submit Button */}
@@ -1462,9 +1158,6 @@ export default function AddClient({ navigation }) {
             )}
           </View>
         </Modal>
-
-        {/* SIM Selection Modal */}
-        {renderSimSelectionModal()}
       </View>
     </TouchableWithoutFeedback>
   );
