@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -32,15 +32,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { openDatabase } from 'react-native-sqlite-storage';
 import AuthContext from '../../context/AuthContext';
 import moment from 'moment';
-import 'moment/locale/bn'; // Import Bengali locale
+import 'moment/locale/bn';
 import { IdGenerator } from '../../Helpers/Generator/IdGenerator';
 
-// Set moment locale to Bengali
 moment.locale('bn');
 
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 
-// Color palette
 const colors = {
   primary: '#00A8A8',
   primaryLight: '#4DC9C9',
@@ -71,11 +69,15 @@ const ShortageList = ({ navigation }) => {
   const [editFormVisible, setEditFormVisible] = useState(false);
   const [selectedShortage, setSelectedShortage] = useState(null);
 
-  // Form state - removed status
+  // Form state
   const [formData, setFormData] = useState({
     id: '',
     title: '',
   });
+
+  // Local input states for immediate feedback
+  const [localTitle, setLocalTitle] = useState('');
+  const [editLocalTitle, setEditLocalTitle] = useState('');
 
   // Edit form state
   const [editFormData, setEditFormData] = useState({
@@ -94,15 +96,16 @@ const ShortageList = ({ navigation }) => {
     type: 'info',
   });
 
+  // Refs for input fields
+  const titleInputRef = useRef(null);
+  const editTitleInputRef = useRef(null);
+
+  // Flag to prevent focus loss
+  const isEditFormVisible = useRef(false);
+
   useEffect(() => {
     loadShortages();
   }, []);
-
-  const generateId = () => {
-    const timestamp = Date.now().toString(36);
-    const randomStr = Math.random().toString(36).substring(2, 8);
-    return `SH-${timestamp}-${randomStr}`.toUpperCase();
-  };
 
   const loadShortages = () => {
     setLoading(true);
@@ -139,10 +142,11 @@ const ShortageList = ({ navigation }) => {
   // Validate add form
   const validateForm = () => {
     const newErrors = {};
+    const titleValue = localTitle || formData.title;
 
-    if (!formData.title.trim()) {
+    if (!titleValue.trim()) {
       newErrors.title = 'শিরোনাম প্রয়োজন';
-    } else if (formData.title.length > 255) {
+    } else if (titleValue.length > 255) {
       newErrors.title = 'শিরোনাম ২৫৫ অক্ষরের কম হতে হবে';
     }
 
@@ -153,10 +157,11 @@ const ShortageList = ({ navigation }) => {
   // Validate edit form
   const validateEditForm = () => {
     const newErrors = {};
+    const titleValue = editLocalTitle || editFormData.title;
 
-    if (!editFormData.title.trim()) {
+    if (!titleValue.trim()) {
       newErrors.title = 'শিরোনাম প্রয়োজন';
-    } else if (editFormData.title.length > 255) {
+    } else if (titleValue.length > 255) {
       newErrors.title = 'শিরোনাম ২৫৫ অক্ষরের কম হতে হবে';
     }
 
@@ -164,16 +169,32 @@ const ShortageList = ({ navigation }) => {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Optimized input handler for create form
   const handleInputChange = (field, value) => {
+    // Update local state immediately for smooth typing
+    if (field === 'title') {
+      setLocalTitle(value);
+    }
+
+    // Update form data without requestAnimationFrame to prevent lag
     setFormData(prev => ({ ...prev, [field]: value }));
+
     // Clear error for this field
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: null }));
     }
   };
 
+  // FIXED: Optimized input handler for edit form - NO requestAnimationFrame
   const handleEditInputChange = (field, value) => {
+    // Update local state immediately for smooth typing
+    if (field === 'title') {
+      setEditLocalTitle(value);
+    }
+
+    // Update edit form data immediately - NO requestAnimationFrame
     setEditFormData(prev => ({ ...prev, [field]: value }));
+
     // Clear error for this field
     if (editErrors[field]) {
       setEditErrors(prev => ({ ...prev, [field]: null }));
@@ -185,6 +206,7 @@ const ShortageList = ({ navigation }) => {
       id: '',
       title: '',
     });
+    setLocalTitle('');
     setErrors({});
   };
 
@@ -193,11 +215,19 @@ const ShortageList = ({ navigation }) => {
       id: '',
       title: '',
     });
+    setEditLocalTitle('');
     setEditErrors({});
     setSelectedShortage(null);
+    isEditFormVisible.current = false;
   };
 
   const handleAddShortage = () => {
+    // Get the current value from local state or form data
+    const titleValue = localTitle || formData.title;
+
+    // Update form data with local value
+    setFormData(prev => ({ ...prev, title: titleValue }));
+
     if (!validateForm()) {
       return;
     }
@@ -205,9 +235,9 @@ const ShortageList = ({ navigation }) => {
     const Id = IdGenerator(logedInUserInfo?.id);
 
     const newShortage = {
-      ...formData,
       id: Id,
-      status: 'Pending', // Default status
+      title: titleValue,
+      status: 'Pending',
     };
 
     db.transaction((tx) => {
@@ -230,13 +260,24 @@ const ShortageList = ({ navigation }) => {
     });
   };
 
+  // FIXED: Handle edit with proper state management
   const handleEditShortage = () => {
-    if (!validateEditForm()) {
+    // Get the current value from local state
+    const titleValue = editLocalTitle;
+
+    if (!titleValue.trim()) {
+      setEditErrors({ title: 'শিরোনাম প্রয়োজন' });
+      return;
+    }
+
+    if (titleValue.length > 255) {
+      setEditErrors({ title: 'শিরোনাম ২৫৫ অক্ষরের কম হতে হবে' });
       return;
     }
 
     const updatedShortage = {
-      ...editFormData,
+      id: editFormData.id,
+      title: titleValue,
     };
 
     db.transaction((tx) => {
@@ -341,13 +382,24 @@ const ShortageList = ({ navigation }) => {
     );
   };
 
+  // FIXED: Open edit form with proper state initialization
   const openEditForm = (item) => {
     setSelectedShortage(item);
     setEditFormData({
       id: item.id,
       title: item.title,
     });
+    setEditLocalTitle(item.title);
+    setEditErrors({});
+    isEditFormVisible.current = true;
     setEditFormVisible(true);
+
+    // Focus input after dialog is opened
+    setTimeout(() => {
+      if (editTitleInputRef.current) {
+        editTitleInputRef.current.focus();
+      }
+    }, 100);
   };
 
   const showSnackbar = (message, type = 'info') => {
@@ -377,6 +429,7 @@ const ShortageList = ({ navigation }) => {
 
   const dismissKeyboard = () => Keyboard.dismiss();
 
+  // Updated renderAddForm with optimized input
   const renderAddForm = () => (
     <Portal>
       <Dialog
@@ -390,11 +443,12 @@ const ShortageList = ({ navigation }) => {
         <Dialog.Title style={styles.dialogTitle}>নতুন শর্টেজ যোগ করুন</Dialog.Title>
         <Dialog.ScrollArea style={styles.dialogScrollArea}>
           <View style={styles.dialogContent}>
-            {/* Title Input */}
+            {/* Title Input - Optimized */}
             <View style={styles.inputContainer}>
               <TextInput
+                ref={titleInputRef}
                 label="শিরোনাম *"
-                value={formData.title}
+                value={localTitle}
                 onChangeText={(text) => handleInputChange('title', text)}
                 mode="outlined"
                 multiline
@@ -404,12 +458,18 @@ const ShortageList = ({ navigation }) => {
                 style={styles.input}
                 outlineColor={colors.border}
                 activeOutlineColor={colors.primary}
+                autoCorrect={false}
+                spellCheck={false}
+                keyboardType="default"
+                returnKeyType="done"
+                blurOnSubmit={true}
+                textAlignVertical="top"
               />
               <HelperText type="error" visible={!!errors.title} style={styles.helperText}>
                 {errors.title}
               </HelperText>
               <Text style={styles.charCountText}>
-                {(formData.title.length).toLocaleString('bn-BD')}/২৫৫
+                {(localTitle.length).toLocaleString('bn-BD')}/২৫৫
               </Text>
             </View>
           </View>
@@ -438,6 +498,7 @@ const ShortageList = ({ navigation }) => {
     </Portal>
   );
 
+  // FIXED: Updated renderEditForm with proper input handling
   const renderEditForm = () => (
     <Portal>
       <Dialog
@@ -448,15 +509,23 @@ const ShortageList = ({ navigation }) => {
         }}
         style={styles.dialog}
       >
-        <Dialog.Title style={styles.dialogTitle}>শর্টেজ সম্পাদনা করুন</Dialog.Title>
+        <Dialog.Title style={styles.dialogTitle}>শর্টেজ আপডেট করুন</Dialog.Title>
         <Dialog.ScrollArea style={styles.dialogScrollArea}>
           <View style={styles.dialogContent}>
-            {/* Title Input */}
+            {/* Title Input - FIXED: No unnecessary re-renders */}
             <View style={styles.inputContainer}>
               <TextInput
+                ref={editTitleInputRef}
                 label="শিরোনাম *"
-                value={editFormData.title}
-                onChangeText={(text) => handleEditInputChange('title', text)}
+                value={editLocalTitle}
+                onChangeText={(text) => {
+                  // Direct update without any delays
+                  setEditLocalTitle(text);
+                  setEditFormData(prev => ({ ...prev, title: text }));
+                  if (editErrors.title) {
+                    setEditErrors(prev => ({ ...prev, title: null }));
+                  }
+                }}
                 mode="outlined"
                 multiline
                 numberOfLines={3}
@@ -465,12 +534,29 @@ const ShortageList = ({ navigation }) => {
                 style={styles.input}
                 outlineColor={colors.border}
                 activeOutlineColor={colors.primary}
+                autoCorrect={false}
+                spellCheck={false}
+                keyboardType="default"
+                returnKeyType="done"
+                blurOnSubmit={true}
+                textAlignVertical="top"
+                // Prevent dialog from closing on blur
+                onBlur={() => {
+                  if (isEditFormVisible.current) {
+                    // Keep focus if form is still visible
+                    setTimeout(() => {
+                      if (editTitleInputRef.current && editFormVisible) {
+                        editTitleInputRef.current.focus();
+                      }
+                    }, 100);
+                  }
+                }}
               />
               <HelperText type="error" visible={!!editErrors.title} style={styles.helperText}>
                 {editErrors.title}
               </HelperText>
               <Text style={styles.charCountText}>
-                {(editFormData.title.length).toLocaleString('bn-BD')}/২৫৫
+                {(editLocalTitle.length).toLocaleString('bn-BD')}/২৫৫
               </Text>
             </View>
           </View>
@@ -582,7 +668,15 @@ const ShortageList = ({ navigation }) => {
             <Appbar.Action
               icon="plus"
               color="#fff"
-              onPress={() => setFormVisible(true)}
+              onPress={() => {
+                setFormVisible(true);
+                // Focus input after dialog is opened
+                setTimeout(() => {
+                  if (titleInputRef.current) {
+                    titleInputRef.current.focus();
+                  }
+                }, 100);
+              }}
             />
           </Appbar.Header>
 
@@ -825,6 +919,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: colors.surface,
     fontSize: 14,
+    // minHeight: 80,
   },
   helperText: {
     fontSize: 11,

@@ -139,7 +139,7 @@ const Schema = () => {
               shop_id INTEGER(10),
               user_id INTEGER(10),
               amount DECIMAL(10,2),
-              transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               status VARCHAR(20),
               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
