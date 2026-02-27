@@ -8,14 +8,12 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
-  RefreshControl
+  RefreshControl,
+  FlatList
 } from 'react-native';
 import {
   Appbar,
-  Card,
-  Avatar,
   Text,
-  Divider,
   TextInput,
   HelperText,
   Button,
@@ -24,15 +22,16 @@ import {
   Provider,
   Snackbar,
   Chip,
+  Searchbar,
+  Menu,
   IconButton,
-  Checkbox
 } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { openDatabase } from 'react-native-sqlite-storage';
 import AuthContext from '../../context/AuthContext';
 import moment from 'moment';
-import 'moment/locale/bn'; // Import Bengali locale
+import 'moment/locale/bn';
 import { IdGenerator } from '../../Helpers/Generator/IdGenerator';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -63,19 +62,36 @@ const colors = {
   border: '#dee2e6',
 };
 
+// Pagination constants
+const PAGE_SIZE = 20;
+
 const ExpenseList = ({ navigation }) => {
-  const { singOut, myToken, logedInUserInfo } = React.useContext(AuthContext);
+  const { logedInUserInfo } = React.useContext(AuthContext);
+
+  // State
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Filter state
+  const [filterType, setFilterType] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('date_desc');
+  const [filterMenuVisible, setFilterMenuVisible] = useState(false);
+  const [sortMenuVisible, setSortMenuVisible] = useState(false);
+
+  // Form state
   const [formVisible, setFormVisible] = useState(false);
   const [editFormVisible, setEditFormVisible] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showEditDatePicker, setShowEditDatePicker] = useState(false);
-  const [filterType, setFilterType] = useState('all'); // 'all', 'today', 'week', 'month'
 
-  // Form state
+  // Form data
   const [formData, setFormData] = useState({
     id: '',
     title: '',
@@ -83,7 +99,6 @@ const ExpenseList = ({ navigation }) => {
     date: new Date(),
   });
 
-  // Edit form state
   const [editFormData, setEditFormData] = useState({
     id: '',
     title: '',
@@ -95,7 +110,7 @@ const ExpenseList = ({ navigation }) => {
   const [errors, setErrors] = useState({});
   const [editErrors, setEditErrors] = useState({});
 
-  // Snackbar state
+  // Snackbar
   const [snackbar, setSnackbar] = useState({
     visible: false,
     message: '',
@@ -110,45 +125,255 @@ const ExpenseList = ({ navigation }) => {
     month: 0,
   });
 
+  // Filter options
+  const filterOptions = [
+    { label: 'সব খরচ', value: 'all', icon: 'format-list-bulleted' },
+    { label: 'আজ', value: 'today', icon: 'calendar-today' },
+    { label: 'গতকাল', value: 'yesterday', icon: 'calendar-arrow-left' },
+    { label: 'এই সপ্তাহ', value: 'week', icon: 'calendar-week' },
+    { label: 'এই মাস', value: 'month', icon: 'calendar-month' },
+    { label: 'এই বছর', value: 'year', icon: 'calendar' },
+  ];
+
+  // Sort options
+  const sortOptions = [
+    { label: 'নতুন প্রথম', value: 'date_desc', icon: 'sort-calendar-descending' },
+    { label: 'পুরাতন প্রথম', value: 'date_asc', icon: 'sort-calendar-ascending' },
+    { label: 'সবচেয়ে বেশি', value: 'amount_desc', icon: 'sort-numeric-descending' },
+    { label: 'সবচেয়ে কম', value: 'amount_asc', icon: 'sort-numeric-ascending' },
+  ];
+
   useEffect(() => {
-    loadExpenses();
+    loadInitialData();
   }, []);
 
   useEffect(() => {
     calculateSummary();
   }, [expenses]);
 
-  const loadExpenses = () => {
+  // Load initial data
+  const loadInitialData = async () => {
     setLoading(true);
-    db.transaction((tx) => {
-      tx.executeSql(
-        'SELECT * FROM expenses ORDER BY date DESC, created_at DESC',
-        [],
-        (_, results) => {
-          const rows = results.rows;
-          let expensesData = [];
-          for (let i = 0; i < rows.length; i++) {
-            expensesData.push(rows.item(i));
+    await Promise.all([
+      loadExpenses(1, true, filterType, sortBy, searchQuery),
+      loadTotalCount(filterType, searchQuery),
+    ]);
+    setLoading(false);
+  };
+
+  // Get WHERE clause based on filters
+  const getWhereClause = (type, search = '') => {
+    let whereClause = `WHERE shop_id = '${logedInUserInfo?.shop[0]?.id}'`;
+
+    switch (type) {
+      case 'today': {
+        const today = moment().locale('en').format('YYYY-MM-DD');
+        whereClause += ` AND date(date) = '${today}'`;
+        break;
+      }
+      case 'yesterday': {
+        const yesterday = moment().locale('en').subtract(1, 'day').format('YYYY-MM-DD');
+        whereClause += ` AND date(date) = '${yesterday}'`;
+        break;
+      }
+      case 'week': {
+        // Use clone() to avoid mutating the moment object
+        const weekStart = moment().clone().locale('en').startOf('isoWeek').format('YYYY-MM-DD');
+        const weekEnd = moment().clone().locale('en').endOf('isoWeek').format('YYYY-MM-DD');
+        whereClause += ` AND date(date) BETWEEN '${weekStart}' AND '${weekEnd}'`;
+        break;
+      }
+      case 'month': {
+        const monthStart = moment().clone().locale('en').startOf('month').format('YYYY-MM-DD');
+        const monthEnd = moment().clone().locale('en').endOf('month').format('YYYY-MM-DD');
+        whereClause += ` AND date(date) BETWEEN '${monthStart}' AND '${monthEnd}'`;
+        break;
+      }
+      case 'year': {
+        const yearStart = moment().clone().locale('en').startOf('year').format('YYYY-MM-DD');
+        const yearEnd = moment().clone().locale('en').endOf('year').format('YYYY-MM-DD');
+        whereClause += ` AND date(date) BETWEEN '${yearStart}' AND '${yearEnd}'`;
+        break;
+      }
+      default:
+        break;
+    }
+
+    if (search.trim()) {
+      whereClause += ` AND title LIKE '%${search}%'`;
+    }
+
+    return whereClause;
+  };
+
+  // Get ORDER BY clause based on sort option
+  const getOrderClause = (sort) => {
+    switch (sort) {
+      case 'date_asc':
+        return 'ORDER BY date ASC, created_at ASC';
+      case 'amount_desc':
+        return 'ORDER BY amount DESC, date DESC';
+      case 'amount_asc':
+        return 'ORDER BY amount ASC, date DESC';
+      default:
+        return 'ORDER BY date DESC, created_at DESC';
+    }
+  };
+
+  // ─── FIX: loadExpenses now accepts the latest filter/sort/search values ─────
+  const loadExpenses = (
+    pageNum = 1,
+    reset = false,
+    currentFilterType = filterType,
+    currentSortBy = sortBy,
+    currentSearchQuery = searchQuery,
+  ) => {
+    return new Promise((resolve) => {
+      const offset = (pageNum - 1) * PAGE_SIZE;
+      const whereClause = getWhereClause(currentFilterType, currentSearchQuery);
+      const orderClause = getOrderClause(currentSortBy);
+
+      const query = `
+        SELECT * FROM expenses 
+        ${whereClause} 
+        ${orderClause} 
+        LIMIT ${PAGE_SIZE} OFFSET ${offset}
+      `;
+
+      db.transaction((tx) => {
+        tx.executeSql(
+          query,
+          [],
+          (_, results) => {
+            const rows = results.rows;
+            let expensesData = [];
+            for (let i = 0; i < rows.length; i++) {
+              expensesData.push(rows.item(i));
+            }
+
+            setExpenses(prev => reset ? expensesData : [...prev, ...expensesData]);
+            setHasMore(expensesData.length === PAGE_SIZE);
+            setPage(pageNum);
+            setLoading(false);
+            setLoadingMore(false);
+            setRefreshing(false);
+            resolve(expensesData);
+          },
+          (_, error) => {
+            console.error('Error loading expenses:', error);
+            showSnackbar('খরচ লোড করতে ব্যর্থ হয়েছে', 'error');
+            setLoading(false);
+            setLoadingMore(false);
+            setRefreshing(false);
+            resolve([]);
           }
-          setExpenses(expensesData);
-          setLoading(false);
-          setRefreshing(false);
-        },
-        (_, error) => {
-          console.error('Error loading expenses:', error);
-          showSnackbar('খরচ লোড করতে ব্যর্থ হয়েছে', 'error');
-          setLoading(false);
-          setRefreshing(false);
-        }
-      );
+        );
+      });
     });
   };
 
+  // ─── FIX: loadTotalCount also accepts the latest filter/search values ────────
+  const loadTotalCount = (
+    currentFilterType = filterType,
+    currentSearchQuery = searchQuery,
+  ) => {
+    return new Promise((resolve) => {
+      const whereClause = getWhereClause(currentFilterType, currentSearchQuery);
+
+      const query = `
+        SELECT COUNT(*) as count FROM expenses 
+        ${whereClause}
+      `;
+
+      db.transaction((tx) => {
+        tx.executeSql(
+          query,
+          [],
+          (_, results) => {
+            const count = results.rows.item(0).count;
+            setTotalCount(count);
+            resolve(count);
+          },
+          (_, error) => {
+            console.error('Error loading count:', error);
+            resolve(0);
+          }
+        );
+      });
+    });
+  };
+
+  // ─── FIX: pass the new value directly so the query uses it immediately ───────
+  const handleFilterChange = (value) => {
+    setFilterType(value);
+    setFilterMenuVisible(false);
+    setPage(1);
+    setExpenses([]);
+    setLoading(true);
+    Promise.all([
+      loadExpenses(1, true, value, sortBy, searchQuery),
+      loadTotalCount(value, searchQuery),
+    ]).then(() => setLoading(false));
+  };
+
+  // ─── FIX: same pattern for sort ──────────────────────────────────────────────
+  const handleSortChange = (value) => {
+    setSortBy(value);
+    setSortMenuVisible(false);
+    setPage(1);
+    setExpenses([]);
+    setLoading(true);
+    Promise.all([
+      loadExpenses(1, true, filterType, value, searchQuery),
+      loadTotalCount(filterType, searchQuery),
+    ]).then(() => setLoading(false));
+  };
+
+  // ─── FIX: same pattern for search ────────────────────────────────────────────
+  const handleSearch = () => {
+    setPage(1);
+    setExpenses([]);
+    setLoading(true);
+    Promise.all([
+      loadExpenses(1, true, filterType, sortBy, searchQuery),
+      loadTotalCount(filterType, searchQuery),
+    ]).then(() => setLoading(false));
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchQuery('');
+    setPage(1);
+    setExpenses([]);
+    setLoading(true);
+    // Pass empty string directly — state hasn't cleared yet
+    Promise.all([
+      loadExpenses(1, true, filterType, sortBy, ''),
+      loadTotalCount(filterType, ''),
+    ]).then(() => setLoading(false));
+  };
+
+  // Load more items for pagination
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      setLoadingMore(true);
+      loadExpenses(page + 1, false, filterType, sortBy, searchQuery);
+    }
+  };
+
+  // Refresh data
+  const onRefresh = () => {
+    setRefreshing(true);
+    setPage(1);
+    loadExpenses(1, true, filterType, sortBy, searchQuery);
+    loadTotalCount(filterType, searchQuery);
+  };
+
+  // Calculate summary statistics
   const calculateSummary = () => {
-    const now = moment();
-    const today = now.format('YYYY-MM-DD');
-    const weekStart = now.startOf('week').format('YYYY-MM-DD');
-    const monthStart = now.startOf('month').format('YYYY-MM-DD');
+    const today = moment().format('YYYY-MM-DD');
+    const weekStart = moment().clone().startOf('isoWeek').format('YYYY-MM-DD');
+    const monthStart = moment().clone().startOf('month').format('YYYY-MM-DD');
 
     let total = 0;
     let todayTotal = 0;
@@ -182,17 +407,66 @@ const ExpenseList = ({ navigation }) => {
     });
   };
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadExpenses();
-  };
-
   // Format currency for Bengali locale
   const formatCurrency = (amount) => {
     return parseFloat(amount || 0).toLocaleString('bn-BD', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2
     });
+  };
+
+  // Format date for display (Bengali)
+  const formatDisplayDate = (date) => {
+    return moment(date).format('DD MMMM YYYY');
+  };
+
+  // Format date for storage (English)
+  const formatStorageDate = (date) => {
+    return moment(date).locale('en').format('YYYY-MM-DD HH:mm:ss');
+  };
+
+  // Format short date for display (Bengali)
+  const formatShortDisplayDate = (date) => {
+    return moment(date).format('DD MMM, YYYY');
+  };
+
+  // Get active filter label
+  const getActiveFilterLabel = () => {
+    const filter = filterOptions.find(f => f.value === filterType);
+    return filter ? filter.label : 'সব খরচ';
+  };
+
+  // Get active sort label
+  const getActiveSortLabel = () => {
+    const sort = sortOptions.find(s => s.value === sortBy);
+    return sort ? sort.label : 'নতুন প্রথম';
+  };
+
+  // Get human-readable date range for the active filter (Bengali)
+  const getFilterDateRange = () => {
+    switch (filterType) {
+      case 'today':
+        return moment().format('DD MMMM YYYY');
+      case 'yesterday':
+        return moment().subtract(1, 'day').format('DD MMMM YYYY');
+      case 'week': {
+        const start = moment().clone().startOf('isoWeek').format('DD');
+        const end = moment().clone().endOf('isoWeek').format('DD MMMM YYYY');
+        return `${start} - ${end}`;
+      }
+      case 'month': {
+        const start = moment().clone().startOf('month').format('DD');
+        const end = moment().clone().endOf('month').format('DD MMMM YYYY');
+        return `${start} - ${end}`;
+      }
+      case 'year': {
+        const start = moment().clone().startOf('year').format('DD MMM');
+        const end = moment().clone().endOf('year').format('DD MMM YYYY');
+        return `${start} - ${end}`;
+      }
+      default:
+        return null;
+    }
   };
 
   // Validate add form
@@ -245,7 +519,6 @@ const ExpenseList = ({ navigation }) => {
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error for this field
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: null }));
     }
@@ -253,7 +526,6 @@ const ExpenseList = ({ navigation }) => {
 
   const handleEditInputChange = (field, value) => {
     setEditFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error for this field
     if (editErrors[field]) {
       setEditErrors(prev => ({ ...prev, [field]: null }));
     }
@@ -306,29 +578,28 @@ const ExpenseList = ({ navigation }) => {
     }
 
     const Id = IdGenerator(logedInUserInfo?.id);
-    const formattedDate = moment(formData.date).format('YYYY-MM-DD HH:mm:ss');
+    const formattedDate = formatStorageDate(formData.date);
 
     const newExpense = {
-      ...formData,
       id: Id,
+      title: formData.title,
       amount: parseFloat(formData.amount),
       date: formattedDate,
+      shop_id: logedInUserInfo?.shop[0]?.id,
+      user_id: logedInUserInfo?.id,
+      status: "No"
     };
-
-    console.log(newExpense)
 
     db.transaction((tx) => {
       tx.executeSql(
         'INSERT INTO expenses (id, title, amount, shop_id, user_id, date, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [newExpense.id, newExpense.title, newExpense.amount, logedInUserInfo?.shop[0]?.id, logedInUserInfo?.id, newExpense.date, "No"
-        ],
+        [newExpense.id, newExpense.title, newExpense.amount, newExpense.shop_id, newExpense.user_id, newExpense.date, newExpense.status],
         () => {
           showSnackbar('খরচ সফলভাবে যোগ করা হয়েছে!', 'success');
           resetForm();
           setFormVisible(false);
-
-          // Add to local state immediately
-          setExpenses(prevExpenses => [newExpense, ...prevExpenses]);
+          setExpenses(prev => [newExpense, ...prev]);
+          setTotalCount(prev => prev + 1);
         },
         (_, error) => {
           console.error('Error adding expense:', error);
@@ -343,7 +614,7 @@ const ExpenseList = ({ navigation }) => {
       return;
     }
 
-    const formattedDate = moment(editFormData.date).format('YYYY-MM-DD HH:mm:ss');
+    const formattedDate = formatStorageDate(editFormData.date);
 
     const updatedExpense = {
       ...editFormData,
@@ -359,10 +630,8 @@ const ExpenseList = ({ navigation }) => {
           showSnackbar('খরচ সফলভাবে আপডেট করা হয়েছে!', 'success');
           setEditFormVisible(false);
           resetEditForm();
-
-          // Update local state immediately
-          setExpenses(prevExpenses =>
-            prevExpenses.map(item =>
+          setExpenses(prev =>
+            prev.map(item =>
               item.id === updatedExpense.id
                 ? { ...item, title: updatedExpense.title, amount: updatedExpense.amount, date: updatedExpense.date }
                 : item
@@ -387,10 +656,9 @@ const ExpenseList = ({ navigation }) => {
           text: 'মুছে ফেলুন',
           style: 'destructive',
           onPress: () => {
-            // Immediately remove from local state
-            setExpenses(prevExpenses => prevExpenses.filter(item => item.id !== id));
+            setExpenses(prev => prev.filter(item => item.id !== id));
+            setTotalCount(prev => prev - 1);
 
-            // Delete from database in background
             db.transaction((tx) => {
               tx.executeSql(
                 'DELETE FROM expenses WHERE id = ?',
@@ -401,8 +669,7 @@ const ExpenseList = ({ navigation }) => {
                 (_, error) => {
                   console.error('Error deleting expense:', error);
                   showSnackbar('খরচ মুছে ফেলতে ব্যর্থ হয়েছে', 'error');
-                  // Reload to restore deleted item on error
-                  loadExpenses();
+                  onRefresh();
                 }
               );
             });
@@ -441,8 +708,6 @@ const ExpenseList = ({ navigation }) => {
         return styles.successSnackbar;
       case 'error':
         return styles.errorSnackbar;
-      case 'warning':
-        return styles.warningSnackbar;
       default:
         return styles.infoSnackbar;
     }
@@ -450,21 +715,204 @@ const ExpenseList = ({ navigation }) => {
 
   const dismissKeyboard = () => Keyboard.dismiss();
 
-  const getFilteredExpenses = () => {
-    const now = moment();
+  // Render header with search and filters
+  const renderHeader = () => (
+    <View style={styles.headerSection}>
+      <View style={styles.searchRow}>
+        <Searchbar
+          placeholder="খরচ খুঁজুন..."
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={styles.searchBar}
+          inputStyle={styles.searchInput}
+          iconColor={colors.primary}
+          onSubmitEditing={handleSearch}
+          onIconPress={handleSearch}
+          onClearIconPress={clearSearch}
+        />
+        <View style={styles.filterButtons}>
+          <Menu
+            visible={filterMenuVisible}
+            onDismiss={() => setFilterMenuVisible(false)}
+            anchor={
+              <IconButton
+                icon="filter"
+                size={24}
+                iconColor={filterType !== 'all' ? colors.primary : colors.textSecondary}
+                onPress={() => setFilterMenuVisible(true)}
+                style={styles.filterIcon}
+              />
+            }
+          >
+            {filterOptions.map(option => (
+              <Menu.Item
+                key={option.value}
+                onPress={() => handleFilterChange(option.value)}
+                title={option.label}
+                leadingIcon={option.icon}
+                titleStyle={filterType === option.value ? styles.activeMenuItem : {}}
+              />
+            ))}
+          </Menu>
 
-    switch (filterType) {
-      case 'today':
-        return expenses.filter(e => moment(e.date).isSame(now, 'day'));
-      case 'week':
-        return expenses.filter(e => moment(e.date).isSame(now, 'week'));
-      case 'month':
-        return expenses.filter(e => moment(e.date).isSame(now, 'month'));
-      default:
-        return expenses;
-    }
+          <Menu
+            visible={sortMenuVisible}
+            onDismiss={() => setSortMenuVisible(false)}
+            anchor={
+              <IconButton
+                icon="sort"
+                size={24}
+                iconColor={colors.textSecondary}
+                onPress={() => setSortMenuVisible(true)}
+                style={styles.filterIcon}
+              />
+            }
+          >
+            {sortOptions.map(option => (
+              <Menu.Item
+                key={option.value}
+                onPress={() => handleSortChange(option.value)}
+                title={option.label}
+                leadingIcon={option.icon}
+                titleStyle={sortBy === option.value ? styles.activeMenuItem : {}}
+              />
+            ))}
+          </Menu>
+        </View>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeFilters}>
+        <Chip
+          icon="filter"
+          onClose={filterType !== 'all' ? () => handleFilterChange('all') : undefined}
+          style={[styles.filterChip, filterType !== 'all' && styles.activeFilterChip]}
+        >
+          {getActiveFilterLabel()}
+        </Chip>
+        <Chip
+          icon="sort"
+          style={styles.filterChip}
+        >
+          {getActiveSortLabel()}
+        </Chip>
+        {searchQuery !== '' && (
+          <Chip
+            icon="magnify"
+            onClose={clearSearch}
+            style={styles.filterChip}
+          >
+            "{searchQuery}"
+          </Chip>
+        )}
+      </ScrollView>
+
+    </View>
+  );
+
+  // Render summary cards
+  const renderSummary = () => (
+    <View style={styles.summaryContainer}>
+      <View style={[styles.summaryCard, { backgroundColor: colors.primaryLightest }]}>
+        <View style={styles.summaryCardHeader}>
+          <Text style={styles.summaryLabel}>মোট খরচ</Text>
+          {getFilterDateRange() && (
+            <View style={styles.summaryDateBadge}>
+              <Icon name="calendar-range" size={12} color={colors.primary} />
+              <Text style={styles.summaryDateText}>{getFilterDateRange()}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={[styles.summaryAmount, { color: colors.primary }]}>
+          ৳ {formatCurrency(summary.total)}
+        </Text>
+      </View>
+      <View style={styles.summaryRow}>
+        <View style={[styles.summarySmallCard, { backgroundColor: colors.warningLight }]}>
+          <Icon name="calendar-today" size={16} color={colors.warning} />
+          <Text style={styles.summarySmallLabel}>আজ</Text>
+          <Text style={[styles.summarySmallAmount, { color: colors.warning }]}>
+            ৳ {formatCurrency(summary.today)}
+          </Text>
+        </View>
+        <View style={[styles.summarySmallCard, { backgroundColor: colors.info + '20' }]}>
+          <Icon name="calendar-week" size={16} color={colors.info} />
+          <Text style={styles.summarySmallLabel}>সপ্তাহ</Text>
+          <Text style={[styles.summarySmallAmount, { color: colors.info }]}>
+            ৳ {formatCurrency(summary.week)}
+          </Text>
+        </View>
+        <View style={[styles.summarySmallCard, { backgroundColor: colors.successLight }]}>
+          <Icon name="calendar-month" size={16} color={colors.success} />
+          <Text style={styles.summarySmallLabel}>মাস</Text>
+          <Text style={[styles.summarySmallAmount, { color: colors.success }]}>
+            ৳ {formatCurrency(summary.month)}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  // Render expense item
+  const renderExpenseItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.expenseItem}
+      onPress={() => openEditForm(item)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.expenseContent}>
+        <View style={styles.expenseMainInfo}>
+          <View style={styles.expenseHeader}>
+            <Text style={styles.expenseTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+            <Text style={styles.expenseAmount}>
+              ৳ {formatCurrency(item.amount)}
+            </Text>
+          </View>
+          <View style={styles.expenseFooter}>
+            <View style={styles.dateContainer}>
+              <Icon name="calendar" size={12} color={colors.textSecondary} />
+              <Text style={styles.expenseDate}>
+                {formatShortDisplayDate(item.date)}
+              </Text>
+            </View>
+            <View style={styles.expenseActions}>
+              <TouchableOpacity
+                onPress={() => handleDeleteExpense(item.id)}
+                style={styles.actionButton}
+              >
+                <Icon name="delete" size={16} color={colors.error} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // Render footer with loading indicator
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={colors.primary} />
+        <Text style={styles.footerText}>আরো লোড হচ্ছে...</Text>
+      </View>
+    );
   };
 
+  // Render empty state
+  const renderEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <Icon name="cash-remove" size={48} color={colors.primaryLight} />
+      <Text style={styles.emptyTitle}>কোনো খরচ নেই</Text>
+      <Text style={styles.emptyText}>
+        {searchQuery ? 'অনুসন্ধানের সাথে মিলে যায়নি' : 'আপনার প্রথম খরচ যোগ করতে + বাটনে ক্লিক করুন'}
+      </Text>
+    </View>
+  );
+
+  // Render date picker
   const renderDatePicker = (isEdit = false) => {
     if (isEdit) {
       return showEditDatePicker && (
@@ -489,6 +937,7 @@ const ExpenseList = ({ navigation }) => {
     );
   };
 
+  // Render add form dialog
   const renderAddForm = () => (
     <Portal>
       <Dialog
@@ -502,7 +951,6 @@ const ExpenseList = ({ navigation }) => {
         <Dialog.Title style={styles.dialogTitle}>নতুন খরচ যোগ করুন</Dialog.Title>
         <Dialog.ScrollArea style={styles.dialogScrollArea}>
           <View style={styles.dialogContent}>
-            {/* Title Input */}
             <View style={styles.inputContainer}>
               <TextInput
                 label="শিরোনাম *"
@@ -523,7 +971,6 @@ const ExpenseList = ({ navigation }) => {
               </HelperText>
             </View>
 
-            {/* Amount Input */}
             <View style={styles.inputContainer}>
               <TextInput
                 label="টাকার পরিমাণ *"
@@ -542,7 +989,6 @@ const ExpenseList = ({ navigation }) => {
               </HelperText>
             </View>
 
-            {/* Date Picker */}
             <View style={styles.inputContainer}>
               <TouchableOpacity
                 onPress={() => setShowDatePicker(true)}
@@ -551,7 +997,7 @@ const ExpenseList = ({ navigation }) => {
                 <View style={styles.datePickerContent}>
                   <Icon name="calendar" size={20} color={colors.primary} />
                   <Text style={styles.dateText}>
-                    {moment(formData.date).format('DD MMMM YYYY', 'bn')}
+                    {formatDisplayDate(formData.date)}
                   </Text>
                 </View>
                 <Icon name="chevron-down" size={20} color={colors.textSecondary} />
@@ -588,6 +1034,7 @@ const ExpenseList = ({ navigation }) => {
     </Portal>
   );
 
+  // Render edit form dialog
   const renderEditForm = () => (
     <Portal>
       <Dialog
@@ -601,7 +1048,6 @@ const ExpenseList = ({ navigation }) => {
         <Dialog.Title style={styles.dialogTitle}>খরচ সম্পাদনা করুন</Dialog.Title>
         <Dialog.ScrollArea style={styles.dialogScrollArea}>
           <View style={styles.dialogContent}>
-            {/* Title Input */}
             <View style={styles.inputContainer}>
               <TextInput
                 label="শিরোনাম *"
@@ -622,7 +1068,6 @@ const ExpenseList = ({ navigation }) => {
               </HelperText>
             </View>
 
-            {/* Amount Input */}
             <View style={styles.inputContainer}>
               <TextInput
                 label="টাকার পরিমাণ *"
@@ -641,7 +1086,6 @@ const ExpenseList = ({ navigation }) => {
               </HelperText>
             </View>
 
-            {/* Date Picker */}
             <View style={styles.inputContainer}>
               <TouchableOpacity
                 onPress={() => setShowEditDatePicker(true)}
@@ -650,7 +1094,7 @@ const ExpenseList = ({ navigation }) => {
                 <View style={styles.datePickerContent}>
                   <Icon name="calendar" size={20} color={colors.primary} />
                   <Text style={styles.dateText}>
-                    {moment(editFormData.date).format('DD MMMM YYYY', 'bn')}
+                    {formatDisplayDate(editFormData.date)}
                   </Text>
                 </View>
                 <Icon name="chevron-down" size={20} color={colors.textSecondary} />
@@ -687,96 +1131,14 @@ const ExpenseList = ({ navigation }) => {
     </Portal>
   );
 
-  const renderExpenseItem = ({ item }) => (
-    <TouchableOpacity
-      key={item.id}
-      style={styles.expenseItem}
-      onPress={() => openEditForm(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.expenseContent}>
-        <View style={styles.expenseMainInfo}>
-          <View style={styles.expenseHeader}>
-            <Text style={styles.expenseTitle} numberOfLines={1}>
-              {item.title}
-            </Text>
-            <Text style={styles.expenseAmount}>
-              ৳ {formatCurrency(item.amount)}
-            </Text>
-          </View>
-          <View style={styles.expenseFooter}>
-            <View style={styles.dateContainer}>
-              <Icon name="calendar" size={12} color={colors.textSecondary} />
-              <Text style={styles.expenseDate}>
-                {moment(item.date).format('DD MMM, YYYY', 'bn')}
-              </Text>
-            </View>
-            <View style={styles.expenseActions}>
-              <TouchableOpacity
-                onPress={() => handleDeleteExpense(item.id)}
-                style={styles.actionButton}
-              >
-                <Icon name="delete" size={16} color={colors.error} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderFilterChips = () => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterContainer}>
-      <Chip
-        selected={filterType === 'all'}
-        onPress={() => setFilterType('all')}
-        style={[styles.filterChip, filterType === 'all' && styles.selectedFilterChip]}
-        textStyle={filterType === 'all' ? styles.selectedFilterText : styles.filterText}
-      >
-        সব খরচ
-      </Chip>
-      <Chip
-        selected={filterType === 'today'}
-        onPress={() => setFilterType('today')}
-        style={[styles.filterChip, filterType === 'today' && styles.selectedFilterChip]}
-        textStyle={filterType === 'today' ? styles.selectedFilterText : styles.filterText}
-      >
-        আজ
-      </Chip>
-      <Chip
-        selected={filterType === 'week'}
-        onPress={() => setFilterType('week')}
-        style={[styles.filterChip, filterType === 'week' && styles.selectedFilterChip]}
-        textStyle={filterType === 'week' ? styles.selectedFilterText : styles.filterText}
-      >
-        এই সপ্তাহ
-      </Chip>
-      <Chip
-        selected={filterType === 'month'}
-        onPress={() => setFilterType('month')}
-        style={[styles.filterChip, filterType === 'month' && styles.selectedFilterChip]}
-        textStyle={filterType === 'month' ? styles.selectedFilterText : styles.filterText}
-      >
-        এই মাস
-      </Chip>
-    </ScrollView>
-  );
-
-  const filteredExpenses = getFilteredExpenses();
-
-  if (loading && !refreshing) {
+  // Loading state
+  if (loading) {
     return (
       <TouchableWithoutFeedback onPress={dismissKeyboard}>
         <SafeAreaView style={styles.container}>
           <Appbar.Header style={styles.header}>
-            <Appbar.BackAction
-              color="#fff"
-              onPress={() => navigation.goBack()}
-            />
-            <Appbar.Content
-              title="খরচের তালিকা"
-              color="#fff"
-            />
+            <Appbar.BackAction color="#fff" onPress={() => navigation.goBack()} />
+            <Appbar.Content title="খরচের তালিকা" color="#fff" />
           </Appbar.Header>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -787,67 +1149,30 @@ const ExpenseList = ({ navigation }) => {
     );
   }
 
+  // Main render
   return (
     <Provider>
       <TouchableWithoutFeedback onPress={dismissKeyboard}>
         <SafeAreaView style={styles.container}>
-          {/* Header */}
           <Appbar.Header style={styles.header}>
-            <Appbar.BackAction
-              color="#fff"
-              onPress={() => navigation.goBack()}
-            />
-            <Appbar.Content
-              title="খরচের তালিকা"
-              color="#fff"
-            />
-            <Appbar.Action
-              icon="plus"
-              color="#fff"
-              onPress={() => setFormVisible(true)}
-            />
+            <Appbar.BackAction color="#fff" onPress={() => navigation.goBack()} />
+            <Appbar.Content title="খরচের তালিকা" color="#fff" />
+            <Appbar.Action icon="plus" color="#fff" onPress={() => setFormVisible(true)} />
           </Appbar.Header>
 
           <View style={styles.content}>
-            {/* Summary Cards */}
-            <View style={styles.summaryContainer}>
-              <View style={[styles.summaryCard, { backgroundColor: colors.primaryLightest }]}>
-                <Text style={styles.summaryLabel}>মোট খরচ</Text>
-                <Text style={[styles.summaryAmount, { color: colors.primary }]}>
-                  ৳ {formatCurrency(summary.total)}
-                </Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <View style={[styles.summarySmallCard, { backgroundColor: colors.warningLight }]}>
-                  <Icon name="calendar-today" size={16} color={colors.warning} />
-                  <Text style={styles.summarySmallLabel}>আজ</Text>
-                  <Text style={[styles.summarySmallAmount, { color: colors.warning }]}>
-                    ৳ {formatCurrency(summary.today)}
-                  </Text>
-                </View>
-                <View style={[styles.summarySmallCard, { backgroundColor: colors.info + '20' }]}>
-                  <Icon name="calendar-week" size={16} color={colors.info} />
-                  <Text style={styles.summarySmallLabel}>সপ্তাহ</Text>
-                  <Text style={[styles.summarySmallAmount, { color: colors.info }]}>
-                    ৳ {formatCurrency(summary.week)}
-                  </Text>
-                </View>
-                <View style={[styles.summarySmallCard, { backgroundColor: colors.successLight }]}>
-                  <Icon name="calendar-month" size={16} color={colors.success} />
-                  <Text style={styles.summarySmallLabel}>মাস</Text>
-                  <Text style={[styles.summarySmallAmount, { color: colors.success }]}>
-                    ৳ {formatCurrency(summary.month)}
-                  </Text>
-                </View>
-              </View>
-            </View>
+            {renderHeader()}
+            {renderSummary()}
 
-            {/* Filter Chips */}
-            {renderFilterChips()}
-
-            {/* Expenses List */}
-            <ScrollView
+            <FlatList
+              data={expenses}
+              renderItem={renderExpenseItem}
+              keyExtractor={item => item.id}
               showsVerticalScrollIndicator={false}
+              onEndReached={loadMore}
+              onEndReachedThreshold={0.3}
+              ListEmptyComponent={renderEmpty}
+              ListFooterComponent={renderFooter}
               refreshControl={
                 <RefreshControl
                   refreshing={refreshing}
@@ -855,34 +1180,15 @@ const ExpenseList = ({ navigation }) => {
                   colors={[colors.primary]}
                 />
               }
-            >
-              {filteredExpenses.length === 0 ? (
-                <View style={styles.emptyContainer}>
-                  <Icon name="cash-remove" size={48} color={colors.primaryLight} />
-                  <Text style={styles.emptyTitle}>কোনো খরচ নেই</Text>
-                  <Text style={styles.emptyText}>
-                    আপনার প্রথম খরচ যোগ করতে + বাটনে ক্লিক করুন
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.listContainer}>
-                  {filteredExpenses.map(item => renderExpenseItem({ item }))}
-                </View>
-              )}
-            </ScrollView>
+              contentContainerStyle={styles.listContainer}
+            />
           </View>
 
-          {/* Date Pickers */}
           {renderDatePicker(false)}
           {renderDatePicker(true)}
-
-          {/* Add Form Dialog */}
           {renderAddForm()}
-
-          {/* Edit Form Dialog */}
           {renderEditForm()}
 
-          {/* Snackbar */}
           <Snackbar
             visible={snackbar.visible}
             onDismiss={dismissSnackbar}
@@ -932,6 +1238,81 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
+  headerSection: {
+    marginBottom: 16,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  searchBar: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    elevation: 0,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    height: 48,
+  },
+  searchInput: {
+    fontSize: 14,
+    minHeight: 48,
+  },
+  filterButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  filterIcon: {
+    margin: 0,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+  },
+  activeFilters: {
+    flexDirection: 'row',
+    marginTop: 4,
+  },
+  filterChip: {
+    marginRight: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    height: 32,
+  },
+  activeFilterChip: {
+    backgroundColor: colors.primaryLightest,
+    borderColor: colors.primary,
+  },
+  summaryCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  summaryDateBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primary + '18',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  summaryDateText: {
+    fontSize: 11,
+    color: colors.primaryDark,
+    fontWeight: '500',
+  },
+  activeMenuItem: {
+    color: colors.primary,
+    fontWeight: '500',
+  },
   summaryContainer: {
     marginBottom: 16,
   },
@@ -943,7 +1324,6 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: 14,
     color: colors.textSecondary,
-    marginBottom: 4,
   },
   summaryAmount: {
     fontSize: 24,
@@ -969,27 +1349,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  filterContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  filterChip: {
-    marginRight: 8,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  selectedFilterChip: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  filterText: {
-    color: colors.textSecondary,
-  },
-  selectedFilterText: {
-    color: '#fff',
-  },
   listContainer: {
+    flexGrow: 1,
     paddingBottom: 16,
   },
   expenseItem: {
@@ -1060,6 +1421,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  footerLoader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  footerText: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   dialog: {
     backgroundColor: colors.surface,
@@ -1133,9 +1505,6 @@ const styles = StyleSheet.create({
   },
   errorSnackbar: {
     backgroundColor: colors.error,
-  },
-  warningSnackbar: {
-    backgroundColor: colors.warning,
   },
   infoSnackbar: {
     backgroundColor: colors.info,
