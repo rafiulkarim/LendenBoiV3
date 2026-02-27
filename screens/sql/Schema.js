@@ -10,119 +10,119 @@ const Schema = () => {
 
   const tableCreate = () => {
     db.transaction(function (txn) {
-      // txn.executeSql(
-      //   "SELECT name FROM sqlite_master WHERE type='table' AND name='clients'",
-      //   [],
-      //   function (tx, res) {
-      //     txn.executeSql('DROP TABLE IF EXISTS clients', [],
-      //       () => console.log("Clients table dropped successfully"),
-      //       (error) => console.error("Error dropping clients table:", error)
-      //     );
-      //     txn.executeSql(
-      //       `CREATE TABLE IF NOT EXISTS clients (
-      //             id VARCHAR(25),
-      //             name VARCHAR(100),
-      //             phone_no VARCHAR(20),
-      //             address VARCHAR(200),
-      //             amount VARCHAR(200),
-      //             amount_type VARCHAR(20),
-      //             status VARCHAR(20),
-      //             type VARCHAR(20),
-      //             shop_id INTEGER(10),
-      //             sync_status VARCHAR(20),
-      //             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      //             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      //         )`,
-      //       [],
-      //       () => console.log("Clients table created successfully"),
-      //       (error) => console.error("Error creating clients table:", error)
-      //     );
-      //   },
-      //   (error) => console.error("Error checking clients table:", error) // Log if the SELECT query fails
-      // );
+      txn.executeSql(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='clients'",
+        [],
+        function (tx, res) {
+          txn.executeSql('DROP TABLE IF EXISTS clients', [],
+            () => console.log("Clients table dropped successfully"),
+            (error) => console.error("Error dropping clients table:", error)
+          );
+          txn.executeSql(
+            `CREATE TABLE IF NOT EXISTS clients (
+                  id VARCHAR(25),
+                  name VARCHAR(100),
+                  phone_no VARCHAR(20),
+                  address VARCHAR(200),
+                  amount VARCHAR(200),
+                  amount_type VARCHAR(20),
+                  status VARCHAR(20),
+                  type VARCHAR(20),
+                  shop_id INTEGER(10),
+                  sync_status VARCHAR(20),
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              )`,
+            [],
+            () => console.log("Clients table created successfully"),
+            (error) => console.error("Error creating clients table:", error)
+          );
+        },
+        (error) => console.error("Error checking clients table:", error) // Log if the SELECT query fails
+      );
 
-      // txn.executeSql(
-      //   "SELECT name FROM sqlite_master WHERE type='table' AND name='ledgers'",
-      //   [],
-      //   function (tx, res) {
-      //     txn.executeSql('DROP TABLE IF EXISTS ledgers', [],
-      //       () => console.log("Ledgers table dropped successfully"),
-      //       (error) => console.error("Error dropping ledgers table:", error)
-      //     );
-      //     txn.executeSql(
-      //       `CREATE TABLE IF NOT EXISTS ledgers (
-      //             id VARCHAR(25),
-      //             client_id VARCHAR(100),
-      //             transaction_type VARCHAR(20),
-      //             transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      //             amount VARCHAR(200),
-      //             comments VARCHAR(255),
-      //             entry_by INTEGER(10),
-      //             shop_id INTEGER(10),
-      //             sync_status VARCHAR(10),
-      //             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      //             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      //         )`,
-      //       [],
-      //       () => console.log("ledgers table created successfully"),
-      //       (error) => console.error("Error creating ledgers table:", error)
-      //     );
-      //   },
-      //   (error) => console.error("Error checking ledgers table:", error) // Log if the SELECT query fails
-      // );
+      txn.executeSql(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='ledgers'",
+        [],
+        function (tx, res) {
+          txn.executeSql('DROP TABLE IF EXISTS ledgers', [],
+            () => console.log("Ledgers table dropped successfully"),
+            (error) => console.error("Error dropping ledgers table:", error)
+          );
+          txn.executeSql(
+            `CREATE TABLE IF NOT EXISTS ledgers (
+                  id VARCHAR(25),
+                  client_id VARCHAR(100),
+                  transaction_type VARCHAR(20),
+                  transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  amount VARCHAR(200),
+                  comments VARCHAR(255),
+                  entry_by INTEGER(10),
+                  shop_id INTEGER(10),
+                  sync_status VARCHAR(10),
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              )`,
+            [],
+            () => console.log("ledgers table created successfully"),
+            (error) => console.error("Error creating ledgers table:", error)
+          );
+        },
+        (error) => console.error("Error checking ledgers table:", error) // Log if the SELECT query fails
+      );
 
-      // txn.executeSql(
-      //   "SELECT name FROM sqlite_master WHERE type='table' AND name='sms_settings'",
-      //   [],
-      //   function (tx, res) {
-      //     txn.executeSql('DROP TABLE IF EXISTS sms_settings', [],
-      //       () => console.log("sms_settings table dropped successfully"),
-      //       (error) => console.error("Error dropping sms_settings table:", error)
-      //     );
-      //     txn.executeSql(
-      //       `CREATE TABLE IF NOT EXISTS sms_settings (
-      //         id TEXT PRIMARY KEY,
-      //         shop_id INTEGER(10),
-      //         selected_sim_id INTEGER(10),
-      //         sim_display_name VARCHAR(255),
-      //         subscription_id INTEGER(10),
-      //         is_no_sim_option INTEGER DEFAULT 0,
-      //         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      //         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      //       )`,
-      //       [],
-      //       () => console.log("sms_settings table created successfully"),
-      //       (error) => console.error("Error creating sms_settings table:", error)
-      //     );
-      //   },
-      //   (error) => console.error("Error checking sms_settings table:", error) // Log if the SELECT query fails
-      // );
+      txn.executeSql(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='sms_settings'",
+        [],
+        function (tx, res) {
+          txn.executeSql('DROP TABLE IF EXISTS sms_settings', [],
+            () => console.log("sms_settings table dropped successfully"),
+            (error) => console.error("Error dropping sms_settings table:", error)
+          );
+          txn.executeSql(
+            `CREATE TABLE IF NOT EXISTS sms_settings (
+              id TEXT PRIMARY KEY,
+              shop_id INTEGER(10),
+              selected_sim_id INTEGER(10),
+              sim_display_name VARCHAR(255),
+              subscription_id INTEGER(10),
+              is_no_sim_option INTEGER DEFAULT 0,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`,
+            [],
+            () => console.log("sms_settings table created successfully"),
+            (error) => console.error("Error creating sms_settings table:", error)
+          );
+        },
+        (error) => console.error("Error checking sms_settings table:", error) // Log if the SELECT query fails
+      );
 
-      // txn.executeSql(
-      //   "SELECT name FROM sqlite_master WHERE type='table' AND name='shortages'",
-      //   [],
-      //   function (tx, res) {
-      //     txn.executeSql('DROP TABLE IF EXISTS shortages', [],
-      //       () => console.log("shortages table dropped successfully"),
-      //       (error) => console.error("Error dropping shortages table:", error)
-      //     );
-      //     txn.executeSql(
-      //       `CREATE TABLE IF NOT EXISTS shortages (
-      //         id VARCHAR(25),
-      //         title VARCHAR(255),
-      //         shop_id INTEGER(10),
-      //         user_id INTEGER(10),
-      //         status VARCHAR(20),
-      //         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      //         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      //       )`,
-      //       [],
-      //       () => console.log("shortages table created successfully"),
-      //       (error) => console.error("Error creating shortages table:", error)
-      //     );
-      //   },
-      //   (error) => console.error("Error checking shortages table:", error) // Log if the SELECT query fails
-      // );
+      txn.executeSql(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='shortages'",
+        [],
+        function (tx, res) {
+          txn.executeSql('DROP TABLE IF EXISTS shortages', [],
+            () => console.log("shortages table dropped successfully"),
+            (error) => console.error("Error dropping shortages table:", error)
+          );
+          txn.executeSql(
+            `CREATE TABLE IF NOT EXISTS shortages (
+              id VARCHAR(25),
+              title VARCHAR(255),
+              shop_id INTEGER(10),
+              user_id INTEGER(10),
+              status VARCHAR(20),
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`,
+            [],
+            () => console.log("shortages table created successfully"),
+            (error) => console.error("Error creating shortages table:", error)
+          );
+        },
+        (error) => console.error("Error checking shortages table:", error) // Log if the SELECT query fails
+      );
 
       txn.executeSql(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='expenses'",
@@ -311,22 +311,22 @@ const Schema = () => {
   //     });
   // }
 
-  // const apiCall = () => {
-  //   let phoneNumber = "01962341558"
-  //   const textSMS1 = `বাকি: ৳১০০০০\nসুলাইমান স্টিল অ্যান্ড গ্লাস অ্যালুমিনিয়াম দরজা`;
+  const apiCall = () => {
+    let phoneNumber = "01962341558"
+    const textSMS1 = `বাকি: ৳১০০০০\nসুলাইমান স্টিল অ্যান্ড গ্লাস অ্যালুমিনিয়াম দরজা`;
 
-  //   // Properly encode the entire message
-  //   const encodedMessage = encodeURIComponent(textSMS1);
+    // Properly encode the entire message
+    const encodedMessage = encodeURIComponent(textSMS1);
 
-  //   fetch(`http://bulksmsbd.net/api/smsapi?api_key=1nWtRTLWI95Wufjyp07F&type=text&number=${phoneNumber}&senderid=8809648906447&message=${encodedMessage}`)
-  //     .then(response => response.json())
-  //     .then(data => {
-  //       console.log('API Response:', data);
-  //     })
-  //     .catch(error => {
-  //       console.error('Error fetching API data:', error);
-  //     });
-  // }
+    fetch(`http://bulksmsbd.net/api/smsapi?api_key=1nWtRTLWI95Wufjyp07F&type=text&number=${phoneNumber}&senderid=8809648906447&message=${encodedMessage}`)
+      .then(response => response.json())
+      .then(data => {
+        console.log('API Response:', data);
+      })
+      .catch(error => {
+        console.error('Error fetching API data:', error);
+      });
+  }
 
   const allTableData = () => {
     db.transaction(function (txn) {
