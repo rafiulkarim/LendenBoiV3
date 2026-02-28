@@ -32,6 +32,8 @@ import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { openDatabase } from 'react-native-sqlite-storage';
 import { IdGenerator } from '../../Helpers/Generator/IdGenerator';
 import moment from 'moment';
+import { CheckInternetConnection } from '../../Helpers/Internet/CheckInternetConnection';
+import { SendBulkSMS, SmsStatus } from '../../Helpers/bulksmsapi/BulkSmsApi';
 
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 const { SmsSender } = NativeModules;
@@ -117,29 +119,36 @@ export default function AddClient({ navigation }) {
 
   // Send SMS function
   const sendSms = async (phoneNumber, message) => {
+    // try {
+    //   // Request permissions first
+    //   const hasPermissions = await requestPermissions();
+    //   if (!hasPermissions) {
+    //     showSnackbar('SMS পাঠানোর অনুমতি প্রয়োজন', 'error');
+    //     return false;
+    //   }
 
-    try {
-      // Request permissions first
-      const hasPermissions = await requestPermissions();
-      if (!hasPermissions) {
-        showSnackbar('SMS পাঠানোর অনুমতি প্রয়োজন', 'error');
-        return false;
+    //   // Send SMS via native module
+    //   const result = await SmsSender.sendSms(
+    //     phoneNumber,
+    //     message,
+    //     selectedSim.subscriptionId
+    //   );
+
+    //   console.log('SMS sent successfully:', result);
+    //   return true;
+    // } catch (error) {
+    //   console.error('Failed to send SMS:', error);
+    //   showSnackbar('SMS পাঠাতে সমস্যা হয়েছে', 'error');
+    //   return false;
+    // }
+    const checkInternetConnection = await CheckInternetConnection()
+    if (checkInternetConnection.isInternetReachable) {
+      const smsAvailable = await SmsStatus()
+      if (smsAvailable > 0) {
+        await SendBulkSMS(phoneNumber, message)
       }
-
-      // Send SMS via native module
-      const result = await SmsSender.sendSms(
-        phoneNumber,
-        message,
-        selectedSim.subscriptionId
-      );
-
-      console.log('SMS sent successfully:', result);
-      return true;
-    } catch (error) {
-      console.error('Failed to send SMS:', error);
-      showSnackbar('SMS পাঠাতে সমস্যা হয়েছে', 'error');
-      return false;
     }
+    // console.log(checkInternetConnection)
   };
 
   // Hide snackbar
@@ -413,6 +422,11 @@ export default function AddClient({ navigation }) {
       createdAt: moment().format('YYYY-MM-DD HH:mm:ss')
     };
 
+    console.log(clientData)
+
+    await sendSms(clientData.phone, '');
+    setIsSubmitting(false);
+
     db.transaction(tx => {
       // First check if phone number already exists
       tx.executeSql(
@@ -593,6 +607,7 @@ export default function AddClient({ navigation }) {
     }, () => {
       console.log('Transaction completed successfully');
     });
+
   };
 
   // Helper function to reset form
