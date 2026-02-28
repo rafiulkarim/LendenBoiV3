@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, { useContext, useEffect, useState, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,8 +7,7 @@ import {
   Keyboard,
   Alert,
   ActivityIndicator,
-  ScrollView,
-  RefreshControl
+  FlatList,       // ✅ FlatList instead of ScrollView
 } from 'react-native';
 import {
   Appbar,
@@ -26,15 +25,11 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { openDatabase } from 'react-native-sqlite-storage';
 import AuthContext from '../../context/AuthContext';
-import moment from 'moment';
-import 'moment/locale/bn';
 import { IdGenerator } from '../../Helpers/Generator/IdGenerator';
-
-moment.locale('bn');
 
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 
-const PAGE_SIZE = 10; // items loaded per batch
+const PAGE_SIZE = 10;
 
 const colors = {
   primary: '#00A8A8',
@@ -58,70 +53,58 @@ const colors = {
 };
 
 const ShortageList = ({ navigation }) => {
-  const { myToken, logedInUserInfo } = React.useContext(AuthContext);
+  const { logedInUserInfo } = React.useContext(AuthContext);
 
-  // ── Pagination state ────────────────────────────────────────────────────────
-  const [shortages, setShortages] = useState([]);   // currently displayed items
-  const [totalCount, setTotalCount] = useState(0);   // total rows in DB
-  const [offset, setOffset] = useState(0);           // current DB offset
+  // ── Pagination state ─────────────────────────────────────────────────────
+  const [shortages, setShortages] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const hasMore = shortages.length < totalCount;
 
-  // ── UI state ────────────────────────────────────────────────────────────────
+  // ── UI state ──────────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [formVisible, setFormVisible] = useState(false);
   const [editFormVisible, setEditFormVisible] = useState(false);
   const [selectedShortage, setSelectedShortage] = useState(null);
 
-  // ── Form state ──────────────────────────────────────────────────────────────
-  const [formData, setFormData] = useState({ id: '', title: '' });
-  const [localTitle, setLocalTitle] = useState('');
-  const [editFormData, setEditFormData] = useState({ id: '', title: '' });
-  const [editLocalTitle, setEditLocalTitle] = useState('');
+  // ── Form errors ───────────────────────────────────────────────────────────
   const [errors, setErrors] = useState({});
   const [editErrors, setEditErrors] = useState({});
 
-  // ── Snackbar ────────────────────────────────────────────────────────────────
+  // ── Char counts ───────────────────────────────────────────────────────────
+  const [addCharCount, setAddCharCount] = useState(0);
+  const [editCharCount, setEditCharCount] = useState(0);
+
+  // ── Snackbar ──────────────────────────────────────────────────────────────
   const [snackbar, setSnackbar] = useState({ visible: false, message: '', type: 'info' });
 
-  // ── Refs ────────────────────────────────────────────────────────────────────
+  // ── Refs ──────────────────────────────────────────────────────────────────
   const titleInputRef = useRef(null);
   const editTitleInputRef = useRef(null);
-  const isEditFormVisible = useRef(false);
+  const addTitleRef = useRef('');
+  const editTitleRef = useRef('');
+  const editIdRef = useRef('');
 
-  // ── Initial load ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    initialLoad();
-  }, []);
+  // ── Initial load ──────────────────────────────────────────────────────────
+  useEffect(() => { initialLoad(); }, []);
 
-  /**
-   * Fetch total count first, then load the first page.
-   */
   const initialLoad = () => {
     setLoading(true);
     db.transaction((tx) => {
       tx.executeSql(
-        'SELECT COUNT(*) as cnt FROM shortages',
-        [],
+        'SELECT COUNT(*) as cnt FROM shortages', [],
         (_, result) => {
           const cnt = result.rows.item(0).cnt;
           setTotalCount(cnt);
           fetchPage(0, true);
         },
-        (_, error) => {
-          console.error('Count error:', error);
-          setLoading(false);
-        }
+        (_, error) => { console.error('Count error:', error); setLoading(false); }
       );
     });
   };
 
-  /**
-   * Fetch one page from the DB using LIMIT / OFFSET.
-   * @param {number}  pageOffset  OFFSET value for the SQL query
-   * @param {boolean} reset       true → replace list, false → append
-   */
   const fetchPage = (pageOffset, reset = false) => {
     db.transaction((tx) => {
       tx.executeSql(
@@ -145,7 +128,7 @@ const ShortageList = ({ navigation }) => {
           setLoadingMore(false);
         },
         (_, error) => {
-          console.error('Fetch page error:', error);
+          console.error('Fetch error:', error);
           showSnackbar('শর্টেজ লোড করতে ব্যর্থ হয়েছে', 'error');
           setLoading(false);
           setRefreshing(false);
@@ -155,79 +138,47 @@ const ShortageList = ({ navigation }) => {
     });
   };
 
-  /** Pull-to-refresh: reload count + first page. */
   const onRefresh = () => {
     setRefreshing(true);
     db.transaction((tx) => {
       tx.executeSql(
-        'SELECT COUNT(*) as cnt FROM shortages',
-        [],
+        'SELECT COUNT(*) as cnt FROM shortages', [],
         (_, result) => {
-          const cnt = result.rows.item(0).cnt;
-          setTotalCount(cnt);
+          setTotalCount(result.rows.item(0).cnt);
           fetchPage(0, true);
         },
-        (_, error) => {
-          console.error('Refresh error:', error);
-          setRefreshing(false);
-        }
+        (_, error) => { console.error('Refresh error:', error); setRefreshing(false); }
       );
     });
   };
 
-  /** Load the next batch. */
-  const loadMore = () => {
+  // ✅ FlatList calls this automatically when user scrolls near the bottom
+  const handleEndReached = () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     fetchPage(offset, false);
   };
 
-  /** Triggered by ScrollView onScroll — auto load when near bottom. */
-  const handleScroll = ({ nativeEvent }) => {
-    const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-    const distanceFromBottom = contentSize.height - contentOffset.y - layoutMeasurement.height;
-    if (distanceFromBottom < 80 && !loadingMore && hasMore) {
-      loadMore();
-    }
-  };
-
-  // ── Validation ───────────────────────────────────────────────────────────────
-  const validateForm = () => {
-    const newErrors = {};
-    const val = localTitle || formData.title;
-    if (!val.trim()) newErrors.title = 'শিরোনাম প্রয়োজন';
-    else if (val.length > 255) newErrors.title = 'শিরোনাম ২৫৫ অক্ষরের কম হতে হবে';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // ── Input handlers ───────────────────────────────────────────────────────────
-  const handleInputChange = (field, value) => {
-    if (field === 'title') setLocalTitle(value);
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
-  };
-
-  // ── Reset helpers ────────────────────────────────────────────────────────────
+  // ── Reset helpers ─────────────────────────────────────────────────────────
   const resetForm = () => {
-    setFormData({ id: '', title: '' });
-    setLocalTitle('');
+    addTitleRef.current = '';
+    setAddCharCount(0);
     setErrors({});
   };
 
   const resetEditForm = () => {
-    setEditFormData({ id: '', title: '' });
-    setEditLocalTitle('');
+    editTitleRef.current = '';
+    editIdRef.current = '';
+    setEditCharCount(0);
     setEditErrors({});
     setSelectedShortage(null);
-    isEditFormVisible.current = false;
   };
 
-  // ── CRUD ─────────────────────────────────────────────────────────────────────
+  // ── CRUD ──────────────────────────────────────────────────────────────────
   const handleAddShortage = () => {
-    const titleValue = localTitle || formData.title;
-    setFormData(prev => ({ ...prev, title: titleValue }));
-    if (!validateForm()) return;
+    const titleValue = addTitleRef.current.trim();
+    if (!titleValue) { setErrors({ title: 'শিরোনাম প্রয়োজন' }); return; }
+    if (titleValue.length > 255) { setErrors({ title: 'শিরোনাম ২৫৫ অক্ষরের কম হতে হবে' }); return; }
 
     const Id = IdGenerator(logedInUserInfo?.id);
     const newShortage = { id: Id, title: titleValue, status: 'Pending' };
@@ -240,40 +191,34 @@ const ShortageList = ({ navigation }) => {
           showSnackbar('শর্টেজ সফলভাবে যোগ করা হয়েছে!', 'success');
           resetForm();
           setFormVisible(false);
-          // Prepend to visible list and update counts
           setShortages(prev => [newShortage, ...prev]);
           setTotalCount(prev => prev + 1);
           setOffset(prev => prev + 1);
         },
-        (_, error) => {
-          console.error('Add error:', error);
-          showSnackbar('শর্টেজ যোগ করতে ব্যর্থ হয়েছে', 'error');
-        }
+        (_, error) => { console.error('Add error:', error); showSnackbar('শর্টেজ যোগ করতে ব্যর্থ হয়েছে', 'error'); }
       );
     });
   };
 
   const handleEditShortage = () => {
-    const titleValue = editLocalTitle;
-    if (!titleValue.trim()) { setEditErrors({ title: 'শিরোনাম প্রয়োজন' }); return; }
+    const titleValue = editTitleRef.current.trim();
+    const id = editIdRef.current;
+    if (!titleValue) { setEditErrors({ title: 'শিরোনাম প্রয়োজন' }); return; }
     if (titleValue.length > 255) { setEditErrors({ title: 'শিরোনাম ২৫৫ অক্ষরের কম হতে হবে' }); return; }
 
     db.transaction((tx) => {
       tx.executeSql(
         'UPDATE shortages SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [titleValue, editFormData.id],
+        [titleValue, id],
         () => {
           showSnackbar('শর্টেজ সফলভাবে আপডেট করা হয়েছে!', 'success');
           setEditFormVisible(false);
           resetEditForm();
           setShortages(prev =>
-            prev.map(item => item.id === editFormData.id ? { ...item, title: titleValue } : item)
+            prev.map(item => item.id === id ? { ...item, title: titleValue } : item)
           );
         },
-        (_, error) => {
-          console.error('Update error:', error);
-          showSnackbar('শর্টেজ আপডেট করতে ব্যর্থ হয়েছে', 'error');
-        }
+        (_, error) => { console.error('Update error:', error); showSnackbar('শর্টেজ আপডেট করতে ব্যর্থ হয়েছে', 'error'); }
       );
     });
   };
@@ -286,14 +231,10 @@ const ShortageList = ({ navigation }) => {
       tx.executeSql(
         'UPDATE shortages SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
         [newStatus, id],
-        () => {
-          showSnackbar(
-            newStatus === 'Completed'
-              ? 'শর্টেজ সম্পন্ন হিসেবে চিহ্নিত করা হয়েছে'
-              : 'শর্টেজ পেন্ডিং হিসেবে চিহ্নিত করা হয়েছে',
-            'success'
-          );
-        },
+        () => showSnackbar(
+          newStatus === 'Completed' ? 'শর্টেজ সম্পন্ন হিসেবে চিহ্নিত করা হয়েছে' : 'শর্টেজ পেন্ডিং হিসেবে চিহ্নিত করা হয়েছে',
+          'success'
+        ),
         (_, error) => {
           console.error('Toggle error:', error);
           showSnackbar('স্ট্যাটাস আপডেট করতে ব্যর্থ হয়েছে', 'error');
@@ -310,8 +251,7 @@ const ShortageList = ({ navigation }) => {
       [
         { text: 'বাতিল', style: 'cancel' },
         {
-          text: 'মুছে ফেলুন',
-          style: 'destructive',
+          text: 'মুছে ফেলুন', style: 'destructive',
           onPress: () => {
             setShortages(prev => prev.filter(item => item.id !== id));
             setTotalCount(prev => prev - 1);
@@ -319,13 +259,12 @@ const ShortageList = ({ navigation }) => {
 
             db.transaction((tx) => {
               tx.executeSql(
-                'DELETE FROM shortages WHERE id = ?',
-                [id],
+                'DELETE FROM shortages WHERE id = ?', [id],
                 () => showSnackbar('শর্টেজ সফলভাবে মুছে ফেলা হয়েছে', 'success'),
                 (_, error) => {
                   console.error('Delete error:', error);
                   showSnackbar('শর্টেজ মুছে ফেলতে ব্যর্থ হয়েছে', 'error');
-                  onRefresh(); // restore on failure
+                  onRefresh();
                 }
               );
             });
@@ -337,15 +276,15 @@ const ShortageList = ({ navigation }) => {
 
   const openEditForm = (item) => {
     setSelectedShortage(item);
-    setEditFormData({ id: item.id, title: item.title });
-    setEditLocalTitle(item.title);
+    editTitleRef.current = item.title;
+    editIdRef.current = item.id;
+    setEditCharCount(item.title.length);
     setEditErrors({});
-    isEditFormVisible.current = true;
     setEditFormVisible(true);
     setTimeout(() => { if (editTitleInputRef.current) editTitleInputRef.current.focus(); }, 100);
   };
 
-  // ── Snackbar ─────────────────────────────────────────────────────────────────
+  // ── Snackbar ──────────────────────────────────────────────────────────────
   const showSnackbar = (message, type = 'info') => setSnackbar({ visible: true, message, type });
   const dismissSnackbar = () => setSnackbar(prev => ({ ...prev, visible: false }));
   const getSnackbarStyle = () => {
@@ -357,10 +296,11 @@ const ShortageList = ({ navigation }) => {
     }
   };
 
-  // ── Render helpers ────────────────────────────────────────────────────────────
-  const renderShortageItem = (item) => (
+  // ── FlatList render helpers ───────────────────────────────────────────────
+
+  // ✅ renderItem for FlatList — receives { item } not item directly
+  const renderItem = ({ item }) => (
     <TouchableOpacity
-      key={item.id}
       style={styles.shortageItem}
       onPress={() => handleToggleStatus(item.id, item.status)}
       activeOpacity={0.7}
@@ -392,12 +332,31 @@ const ShortageList = ({ navigation }) => {
     </TouchableOpacity>
   );
 
-  /**
-   * Footer shown at the very bottom of the list:
-   * - spinner while fetching next page
-   * - "end" message when everything is loaded
-   */
-  const renderListFooter = () => {
+  // ✅ ListHeaderComponent — stats bar always at top of list
+  const ListHeader = () => (
+    <View style={styles.statsContainer}>
+      <View style={styles.statBox}>
+        <Icon name="format-list-bulleted" size={18} color={colors.primary} />
+        <Text style={styles.statNumber}>{totalCount}</Text>
+        <Text style={styles.statLabel}>মোট</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statBox}>
+        <Icon name="clock-outline" size={18} color={colors.warning} />
+        <Text style={styles.statNumber}>{shortages.filter(s => s.status === 'Pending').length}</Text>
+        <Text style={styles.statLabel}>পেন্ডিং</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statBox}>
+        <Icon name="check-circle-outline" size={18} color={colors.success} />
+        <Text style={styles.statNumber}>{shortages.filter(s => s.status === 'Completed').length}</Text>
+        <Text style={styles.statLabel}>সম্পন্ন</Text>
+      </View>
+    </View>
+  );
+
+  // ✅ ListFooterComponent — spinner while loading more, or "all seen" text
+  const ListFooter = () => {
     if (loadingMore) {
       return (
         <View style={styles.loadMoreContainer}>
@@ -412,9 +371,23 @@ const ShortageList = ({ navigation }) => {
     return null;
   };
 
+  // ✅ ListEmptyComponent — shown when data array is empty
+  const ListEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <Icon name="clipboard-text-outline" size={48} color={colors.primaryLight} />
+      <Text style={styles.emptyTitle}>কোনো শর্টেজ নেই</Text>
+      <Text style={styles.emptyText}>আপনার প্রথম শর্টেজ যোগ করতে + বাটনে ক্লিক করুন</Text>
+    </View>
+  );
+
+  // ── Forms ─────────────────────────────────────────────────────────────────
   const renderAddForm = () => (
     <Portal>
-      <Dialog visible={formVisible} onDismiss={() => { setFormVisible(false); resetForm(); }} style={styles.dialog}>
+      <Dialog
+        visible={formVisible}
+        onDismiss={() => { setFormVisible(false); resetForm(); }}
+        style={styles.dialog}
+      >
         <Dialog.Title style={styles.dialogTitle}>নতুন শর্টেজ যোগ করুন</Dialog.Title>
         <Dialog.ScrollArea style={styles.dialogScrollArea}>
           <View style={styles.dialogContent}>
@@ -422,8 +395,12 @@ const ShortageList = ({ navigation }) => {
               <TextInput
                 ref={titleInputRef}
                 label="শিরোনাম *"
-                value={localTitle}
-                onChangeText={(text) => handleInputChange('title', text)}
+                defaultValue=""
+                onChangeText={(text) => {
+                  addTitleRef.current = text;
+                  setAddCharCount(text.length);
+                  if (errors.title) setErrors({});
+                }}
                 mode="outlined"
                 multiline
                 numberOfLines={3}
@@ -441,7 +418,7 @@ const ShortageList = ({ navigation }) => {
               <HelperText type="error" visible={!!errors.title} style={styles.helperText}>
                 {errors.title}
               </HelperText>
-              <Text style={styles.charCountText}>{localTitle.length}/২৫৫</Text>
+              <Text style={styles.charCountText}>{addCharCount}/২৫৫</Text>
             </View>
           </View>
         </Dialog.ScrollArea>
@@ -459,19 +436,24 @@ const ShortageList = ({ navigation }) => {
 
   const renderEditForm = () => (
     <Portal>
-      <Dialog visible={editFormVisible} onDismiss={() => { setEditFormVisible(false); resetEditForm(); }} style={styles.dialog}>
+      <Dialog
+        visible={editFormVisible}
+        onDismiss={() => { setEditFormVisible(false); resetEditForm(); }}
+        style={styles.dialog}
+      >
         <Dialog.Title style={styles.dialogTitle}>শর্টেজ আপডেট করুন</Dialog.Title>
         <Dialog.ScrollArea style={styles.dialogScrollArea}>
           <View style={styles.dialogContent}>
             <View style={styles.inputContainer}>
               <TextInput
+                key={selectedShortage?.id}
                 ref={editTitleInputRef}
                 label="শিরোনাম *"
-                value={editLocalTitle}
+                defaultValue={selectedShortage?.title ?? ''}
                 onChangeText={(text) => {
-                  setEditLocalTitle(text);
-                  setEditFormData(prev => ({ ...prev, title: text }));
-                  if (editErrors.title) setEditErrors(prev => ({ ...prev, title: null }));
+                  editTitleRef.current = text;
+                  setEditCharCount(text.length);
+                  if (editErrors.title) setEditErrors({});
                 }}
                 mode="outlined"
                 multiline
@@ -486,18 +468,11 @@ const ShortageList = ({ navigation }) => {
                 returnKeyType="done"
                 blurOnSubmit={true}
                 textAlignVertical="top"
-                onBlur={() => {
-                  if (isEditFormVisible.current) {
-                    setTimeout(() => {
-                      if (editTitleInputRef.current && editFormVisible) editTitleInputRef.current.focus();
-                    }, 100);
-                  }
-                }}
               />
               <HelperText type="error" visible={!!editErrors.title} style={styles.helperText}>
                 {editErrors.title}
               </HelperText>
-              <Text style={styles.charCountText}>{editLocalTitle.length}/২৫৫</Text>
+              <Text style={styles.charCountText}>{editCharCount}/২৫৫</Text>
             </View>
           </View>
         </Dialog.ScrollArea>
@@ -513,7 +488,7 @@ const ShortageList = ({ navigation }) => {
     </Portal>
   );
 
-  // ── Loading screen ────────────────────────────────────────────────────────────
+  // ── Loading screen ────────────────────────────────────────────────────────
   if (loading && !refreshing) {
     return (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -531,7 +506,7 @@ const ShortageList = ({ navigation }) => {
     );
   }
 
-  // ── Main render ───────────────────────────────────────────────────────────────
+  // ── Main render ───────────────────────────────────────────────────────────
   return (
     <Provider>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -550,49 +525,33 @@ const ShortageList = ({ navigation }) => {
           </Appbar.Header>
 
           <View style={styles.content}>
-            {/* Stats */}
-            <View style={styles.statsContainer}>
-              <View style={styles.statBox}>
-                <Icon name="format-list-bulleted" size={18} color={colors.primary} />
-                <Text style={styles.statNumber}>{totalCount}</Text>
-                <Text style={styles.statLabel}>মোট</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statBox}>
-                <Icon name="clock-outline" size={18} color={colors.warning} />
-                <Text style={styles.statNumber}>{shortages.filter(s => s.status === 'Pending').length}</Text>
-                <Text style={styles.statLabel}>পেন্ডিং</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statBox}>
-                <Icon name="check-circle-outline" size={18} color={colors.success} />
-                <Text style={styles.statNumber}>{shortages.filter(s => s.status === 'Completed').length}</Text>
-                <Text style={styles.statLabel}>সম্পন্ন</Text>
-              </View>
-            </View>
+            {/* ✅ FlatList replaces ScrollView + manual map */}
+            <FlatList
+              data={shortages}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={renderItem}
 
-            {/* List with infinite scroll */}
-            <ScrollView
+              // ── Pagination ─────────────────────────────────────────────
+              onEndReached={handleEndReached}        // fires when near bottom
+              onEndReachedThreshold={0.3}            // trigger at 30% from bottom
+
+              // ── Pull-to-refresh ────────────────────────────────────────
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+
+              // ── Header / Footer / Empty ────────────────────────────────
+              ListHeaderComponent={<ListHeader />}
+              ListFooterComponent={<ListFooter />}
+              ListEmptyComponent={<ListEmpty />}
+
+              // ── Performance ────────────────────────────────────────────
               showsVerticalScrollIndicator={false}
-              onScroll={handleScroll}
-              scrollEventThrottle={200}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
-              }
-            >
-              {shortages.length === 0 ? (
-                <View style={styles.emptyContainer}>
-                  <Icon name="clipboard-text-outline" size={48} color={colors.primaryLight} />
-                  <Text style={styles.emptyTitle}>কোনো শর্টেজ নেই</Text>
-                  <Text style={styles.emptyText}>আপনার প্রথম শর্টেজ যোগ করতে + বাটনে ক্লিক করুন</Text>
-                </View>
-              ) : (
-                <View style={styles.listContainer}>
-                  {shortages.map(item => renderShortageItem(item))}
-                  {renderListFooter()}
-                </View>
-              )}
-            </ScrollView>
+              contentContainerStyle={styles.flatListContent}
+              removeClippedSubviews={true}
+              initialNumToRender={PAGE_SIZE}
+              maxToRenderPerBatch={PAGE_SIZE}
+              windowSize={5}
+            />
           </View>
 
           {renderAddForm()}
@@ -622,6 +581,10 @@ const styles = StyleSheet.create({
   content: { flex: 1, padding: 12 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 16, fontSize: 14, color: colors.textPrimary },
+
+  // ✅ FlatList content container — ensures empty state is centered
+  flatListContent: { flexGrow: 1, paddingBottom: 8 },
+
   statsContainer: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
@@ -635,7 +598,7 @@ const styles = StyleSheet.create({
   statNumber: { fontSize: 16, fontWeight: 'bold', color: colors.textPrimary, marginTop: 2 },
   statLabel: { fontSize: 10, color: colors.textSecondary, marginTop: 1 },
   statDivider: { width: 1, height: '70%', backgroundColor: colors.border, alignSelf: 'center' },
-  listContainer: { paddingBottom: 8 },
+
   shortageItem: { backgroundColor: colors.surface, borderRadius: 8, marginBottom: 6, elevation: 1 },
   shortageContent: {
     flexDirection: 'row',
@@ -649,10 +612,11 @@ const styles = StyleSheet.create({
   completedTitle: { textDecorationLine: 'line-through', color: colors.textSecondary },
   shortageActions: { flexDirection: 'row', alignItems: 'center', marginLeft: 4 },
   actionButton: { padding: 4, marginLeft: 2 },
-  emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48 },
+
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 48 },
   emptyTitle: { fontSize: 16, fontWeight: 'bold', color: colors.textPrimary, marginTop: 12, marginBottom: 4 },
   emptyText: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 32 },
-  // ── Load-more footer ──────────────────────────────────────────────────────────
+
   loadMoreContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -661,9 +625,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadMoreText: { fontSize: 13, color: colors.textSecondary },
-
   endText: { textAlign: 'center', fontSize: 11, color: colors.textSecondary, paddingVertical: 16 },
-  // ── Dialog ────────────────────────────────────────────────────────────────────
+
   dialog: { backgroundColor: colors.surface, borderRadius: 16 },
   dialogTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: 'bold', textAlign: 'center' },
   dialogScrollArea: { paddingHorizontal: 0 },
@@ -677,7 +640,6 @@ const styles = StyleSheet.create({
   cancelButtonLabel: { color: colors.textSecondary, fontSize: 14 },
   saveButton: { backgroundColor: colors.primary, borderRadius: 6, elevation: 1 },
   saveButtonLabel: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  // ── Snackbar ──────────────────────────────────────────────────────────────────
   snackbar: { position: 'absolute', bottom: 12, left: 12, right: 12, borderRadius: 6, elevation: 4 },
   successSnackbar: { backgroundColor: colors.success },
   errorSnackbar: { backgroundColor: colors.error },
