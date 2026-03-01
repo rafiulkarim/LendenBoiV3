@@ -368,10 +368,10 @@ const Schema = () => {
         >All table Data</Button>
       </View>
 
-      {/* <Button style={{
+      <Button style={{
       }}
         onPress={() => apiCall()} mode='contained'
-      >Check Balance</Button> */}
+      >Check Balance</Button>
     </>
   )
 }
