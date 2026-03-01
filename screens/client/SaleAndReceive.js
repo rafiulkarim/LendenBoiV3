@@ -38,6 +38,8 @@ import moment from 'moment';
 // import SimCardsManager from 'react-native-sim-cards-manager';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CheckInternetConnection } from '../../Helpers/Internet/CheckInternetConnection';
+import { SmsStatus } from '../../Helpers/bulksmsapi/BulkSmsApi';
 
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 const { SmsSender } = NativeModules;
@@ -244,97 +246,97 @@ const SaleAndReceive = ({ navigation, route }) => {
   };
 
   // Fetch SIM cards with "No SIM" option
-  const fetchSimCards = async () => {
-    try {
-      setIsLoadingSims(true);
+  // const fetchSimCards = async () => {
+  //   try {
+  //     setIsLoadingSims(true);
 
-      // Create table if not exists
-      // createSmsSettingsTable();
+  //     // Create table if not exists
+  //     // createSmsSettingsTable();
 
-      // Load saved SIM selection
-      const savedSim = await loadSavedSimSelection();
+  //     // Load saved SIM selection
+  //     const savedSim = await loadSavedSimSelection();
 
-      console.log('savedSim', savedSim)
+  //     console.log('savedSim', savedSim)
 
-      const sims = await SimCardsManager.getSimCards();
+  //     const sims = await SimCardsManager.getSimCards();
 
-      // Format SIM cards data
-      const formattedSims = sims.map((sim, index) => ({
-        ...sim,
-        id: sim.subscriptionId || index.toString(),
-        displayName: sim.displayName || sim.carrierName || `SIM ${index + 1}`,
-        isActive: true,
-        phoneNumber: sim.phoneNumber || sim.number || 'নম্বর নেই',
-        isNoSimOption: false // Mark as real SIM card
-      }));
+  //     // Format SIM cards data
+  //     const formattedSims = sims.map((sim, index) => ({
+  //       ...sim,
+  //       id: sim.subscriptionId || index.toString(),
+  //       displayName: sim.displayName || sim.carrierName || `SIM ${index + 1}`,
+  //       isActive: true,
+  //       phoneNumber: sim.phoneNumber || sim.number || 'নম্বর নেই',
+  //       isNoSimOption: false // Mark as real SIM card
+  //     }));
 
-      // Add "No SIM card selected" option as the first item
-      const noSimOption = {
-        id: 'no-sim-selected',
-        displayName: 'SMS পাঠাবেন না',
-        isActive: false,
-        phoneNumber: null,
-        isNoSimOption: true,
-        subscriptionId: null
-      };
+  //     // Add "No SIM card selected" option as the first item
+  //     const noSimOption = {
+  //       id: 'no-sim-selected',
+  //       displayName: 'SMS পাঠাবেন না',
+  //       isActive: false,
+  //       phoneNumber: null,
+  //       isNoSimOption: true,
+  //       subscriptionId: null
+  //     };
 
-      // Add no SIM option to the beginning of the list
-      const allOptions = [noSimOption, ...formattedSims];
+  //     // Add no SIM option to the beginning of the list
+  //     const allOptions = [noSimOption, ...formattedSims];
 
-      setSimCards(allOptions);
+  //     setSimCards(allOptions);
 
-      console.log(allOptions)
+  //     console.log(allOptions)
 
-      // Set selected SIM based on saved data or default to "No SIM" option
-      if (savedSim) {
-        // Find matching SIM from the list
-        let selected = allOptions.find(sim =>
-          sim.id === savedSim.selected_sim_id ||
-          (sim.isNoSimOption && savedSim.is_no_sim_option === 1)
-        );
+  //     // Set selected SIM based on saved data or default to "No SIM" option
+  //     if (savedSim) {
+  //       // Find matching SIM from the list
+  //       let selected = allOptions.find(sim =>
+  //         sim.id === savedSim.selected_sim_id ||
+  //         (sim.isNoSimOption && savedSim.is_no_sim_option === 1)
+  //       );
 
-        console.log('selected', selected)
+  //       console.log('selected', selected)
 
-        if (selected) {
-          console.log('comes')
-          setSelectedSim(selected);
-        } else {
-          // If saved SIM not found in current list, default to "No SIM"
-          setSelectedSim(noSimOption);
-          // Update database with default selection
-          // saveSimSelectionToDb(noSimOption).catch(console.error);
-        }
-      } else {
-        // No saved data, default to "No SIM" option
-        setSelectedSim(noSimOption);
-        // Save default to database
-        // saveSimSelectionToDb(noSimOption).catch(console.error);
-      }
+  //       if (selected) {
+  //         console.log('comes')
+  //         setSelectedSim(selected);
+  //       } else {
+  //         // If saved SIM not found in current list, default to "No SIM"
+  //         setSelectedSim(noSimOption);
+  //         // Update database with default selection
+  //         // saveSimSelectionToDb(noSimOption).catch(console.error);
+  //       }
+  //     } else {
+  //       // No saved data, default to "No SIM" option
+  //       setSelectedSim(noSimOption);
+  //       // Save default to database
+  //       // saveSimSelectionToDb(noSimOption).catch(console.error);
+  //     }
 
-    } catch (error) {
-      console.error('Error fetching SIM cards:', error);
+  //   } catch (error) {
+  //     console.error('Error fetching SIM cards:', error);
 
-      // Even if error occurs, create the no SIM option
-      const noSimOption = {
-        id: 'no-sim-selected',
-        displayName: 'SMS পাঠাবেন না',
-        isActive: false,
-        phoneNumber: null,
-        isNoSimOption: true,
-        subscriptionId: null
-      };
+  //     // Even if error occurs, create the no SIM option
+  //     const noSimOption = {
+  //       id: 'no-sim-selected',
+  //       displayName: 'SMS পাঠাবেন না',
+  //       isActive: false,
+  //       phoneNumber: null,
+  //       isNoSimOption: true,
+  //       subscriptionId: null
+  //     };
 
-      setSimCards([noSimOption]);
-      setSelectedSim(noSimOption);
+  //     setSimCards([noSimOption]);
+  //     setSelectedSim(noSimOption);
 
-      // Try to save default to database
-      // saveSimSelectionToDb(noSimOption).catch(console.error);
+  //     // Try to save default to database
+  //     // saveSimSelectionToDb(noSimOption).catch(console.error);
 
-      showSnackbar('SIM তথ্য লোড করতে সমস্যা হয়েছে', 'error');
-    } finally {
-      setIsLoadingSims(false);
-    }
-  };
+  //     showSnackbar('SIM তথ্য লোড করতে সমস্যা হয়েছে', 'error');
+  //   } finally {
+  //     setIsLoadingSims(false);
+  //   }
+  // };
 
   // SIM card selection handler
   const handleSimSelect = async (sim) => {
@@ -359,67 +361,108 @@ const SaleAndReceive = ({ navigation, route }) => {
   };
 
   // Fetch SIM cards on mount
-  useEffect(() => {
-    fetchSimCards();
-  }, []);
+  // useEffect(() => {
+  //   fetchSimCards();
+  // }, []);
 
   // console.log(selectedSim);
 
   // Request SMS permissions
-  const requestPermissions = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.SEND_SMS,
-          PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
-        ]);
+  // const requestPermissions = async () => {
+  //   if (Platform.OS === 'android') {
+  //     try {
+  //       const granted = await PermissionsAndroid.requestMultiple([
+  //         PermissionsAndroid.PERMISSIONS.SEND_SMS,
+  //         PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
+  //       ]);
 
-        const smsGranted = granted[PermissionsAndroid.PERMISSIONS.SEND_SMS] === PermissionsAndroid.RESULTS.GRANTED;
-        const phoneGranted = granted[PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE] === PermissionsAndroid.RESULTS.GRANTED;
+  //       const smsGranted = granted[PermissionsAndroid.PERMISSIONS.SEND_SMS] === PermissionsAndroid.RESULTS.GRANTED;
+  //       const phoneGranted = granted[PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE] === PermissionsAndroid.RESULTS.GRANTED;
 
-        return smsGranted && phoneGranted;
-      } catch (err) {
-        console.error('Permission request error:', err);
-        return false;
-      }
-    }
-    return true;
-  };
+  //       return smsGranted && phoneGranted;
+  //     } catch (err) {
+  //       console.error('Permission request error:', err);
+  //       return false;
+  //     }
+  //   }
+  //   return true;
+  // };
 
   // Send SMS function
   const sendSms = async (phoneNumber, message) => {
     // Check if "No SIM card selected" option is chosen
-    if (selectedSim?.isNoSimOption) {
-      console.log('SMS sending skipped - No SIM selected option chosen');
-      // showSnackbar('দয়া করে একটি SIM নির্বাচন করুন', 'error');
-      return true; // Return true since user chose not to send SMS
+    // if (selectedSim?.isNoSimOption) {
+    //   console.log('SMS sending skipped - No SIM selected option chosen');
+    //   // showSnackbar('দয়া করে একটি SIM নির্বাচন করুন', 'error');
+    //   return true; // Return true since user chose not to send SMS
+    // }
+
+    // if (!selectedSim) {
+    //   showSnackbar('দয়া করে একটি SIM নির্বাচন করুন', 'error');
+    //   return false;
+    // }
+
+    // try {
+    //   // Request permissions first
+    //   const hasPermissions = await requestPermissions();
+    //   if (!hasPermissions) {
+    //     showSnackbar('SMS পাঠানোর অনুমতি প্রয়োজন', 'error');
+    //     return false;
+    //   }
+
+    //   // Send SMS via native module
+    //   const result = await SmsSender.sendSms(
+    //     phoneNumber,
+    //     message,
+    //     selectedSim.subscriptionId
+    //   );
+
+    //   console.log('SMS sent successfully:', result);
+    //   return true;
+    // } catch (error) {
+    //   console.error('Failed to send SMS:', error);
+    //   showSnackbar('SMS পাঠাতে সমস্যা হয়েছে', 'error');
+    //   return false;
+    // }
+    if (!message || message.trim() === '') {
+      console.log('Skipping SMS - empty message');
+      return false;
     }
 
-    if (!selectedSim) {
-      showSnackbar('দয়া করে একটি SIM নির্বাচন করুন', 'error');
+    if (!phoneNumber || phoneNumber.trim() === '') {
+      console.log('Skipping SMS - empty phone number');
       return false;
     }
 
     try {
-      // Request permissions first
-      const hasPermissions = await requestPermissions();
-      if (!hasPermissions) {
-        showSnackbar('SMS পাঠানোর অনুমতি প্রয়োজন', 'error');
+      const checkInternetConnection = await CheckInternetConnection();
+      if (!checkInternetConnection.isInternetReachable) {
+        console.log('No internet connection');
         return false;
       }
 
-      // Send SMS via native module
-      const result = await SmsSender.sendSms(
-        phoneNumber,
-        message,
-        selectedSim.subscriptionId
-      );
+      const smsAvailable = await SmsStatus();
+      if (smsAvailable <= 0) {
+        console.log('No SMS balance available');
+        return false;
+      }
 
-      console.log('SMS sent successfully:', result);
-      return true;
+      // Format phone number - ensure it starts with 880
+      let formattedPhone = phoneNumber.replace(/\D/g, '');
+      if (formattedPhone.startsWith('01')) {
+        formattedPhone = '880' + formattedPhone.substring(1);
+      }
+
+      const encodedMessage = encodeURIComponent(message);
+      const url = `http://bulksmsbd.net/api/smsapi?api_key=1nWtRTLWI95Wufjyp07F&type=text&number=${formattedPhone}&senderid=8809648906447&message=${encodedMessage}`;
+
+      const response = await fetch(url);
+      const data = await response.json();
+      console.log('SMS API Response:', data);
+
+      return data.response_code === 202; // 202 = success for bulksmsbd
     } catch (error) {
       console.error('Failed to send SMS:', error);
-      showSnackbar('SMS পাঠাতে সমস্যা হয়েছে', 'error');
       return false;
     }
   };
@@ -487,14 +530,14 @@ const SaleAndReceive = ({ navigation, route }) => {
             ledger1,
             clientId,
             dilamTransactionType,
-            moment(selectedDate).format('YYYY-MM-DD HH:mm:ss'),
+            moment(selectedDate).locale('en').format('YYYY-MM-DD HH:mm:ss'),
             dilamAmount,
             biboron,
             logedInUserInfo?.id,
             logedInUserInfo?.shop[0]?.id,
             "No",
-            moment().format('YYYY-MM-DD HH:mm:ss'),
-            moment().format('YYYY-MM-DD HH:mm:ss')
+            moment().locale('en').format('YYYY-MM-DD HH:mm:ss'),
+            moment().locale('en').format('YYYY-MM-DD HH:mm:ss')
           ],
           async (tx, ledgerResult) => {
             console.log('dilam amount submited')
@@ -513,14 +556,14 @@ const SaleAndReceive = ({ navigation, route }) => {
             ledger2,
             clientId,
             pelamTransactionType,
-            moment(selectedDate).format('YYYY-MM-DD HH:mm:ss'),
+            moment(selectedDate).locale('en').format('YYYY-MM-DD HH:mm:ss'),
             pelamAmount,
             biboron,
             logedInUserInfo?.id,
             logedInUserInfo?.shop[0]?.id,
             "No",
-            moment().format('YYYY-MM-DD HH:mm:ss'),
-            moment().format('YYYY-MM-DD HH:mm:ss')
+            moment().locale('en').format('YYYY-MM-DD HH:mm:ss'),
+            moment().locale('en').format('YYYY-MM-DD HH:mm:ss')
           ],
           async (tx, ledgerResult) => {
             console.log('dilam amount submited')
@@ -576,12 +619,13 @@ const SaleAndReceive = ({ navigation, route }) => {
 
           tx.executeSql(
             'UPDATE clients SET updated_at = ?, amount = ?, amount_type = ?, sync_status = ?  WHERE id = ?',
-            [moment().format('YYYY-MM-DD HH:mm:ss'), dueOrAdvanceAmount, dueOrAdvance, "No", clientId],
+            [moment().locale('en').format('YYYY-MM-DD HH:mm:ss'), dueOrAdvanceAmount, dueOrAdvance, "No", clientId],
             async (tx, results) => {
               if (results.rowsAffected > 0) {
                 console.log('First record updated');
 
-                if (clientData.phone_no && clientData.phone_no.trim() !== '' && !selectedSim?.isNoSimOption && selectedSim) {
+                // if (clientData.phone_no && clientData.phone_no.trim() !== '' && !selectedSim?.isNoSimOption && selectedSim) {
+                if (clientData.phone_no && clientData.phone_no.trim() !== '') {
                   try {
                     const formattedAmount = new Intl.NumberFormat('en-BD').format(dueOrAdvanceAmount);
                     const shopName = logedInUserInfo?.shop[0]?.title || '';
@@ -634,12 +678,7 @@ const SaleAndReceive = ({ navigation, route }) => {
           showSnackbar('লেনদেন সফলভাবে যোগ হয়নি', 'error');
         }
       );
-
-
-
     })
-
-
 
     // Here you can add your database logic to save the transaction
 
@@ -1282,7 +1321,7 @@ const SaleAndReceive = ({ navigation, route }) => {
             </Card>
 
             {/* SMS Settings Section */}
-            <View style={styles.smsSettingsSection}>
+            {/* <View style={styles.smsSettingsSection}>
               <Text style={styles.sectionTitle}>SMS সেটিংস</Text>
 
               <TouchableOpacity
@@ -1334,9 +1373,9 @@ const SaleAndReceive = ({ navigation, route }) => {
                   ? 'কোন SMS পাঠানো হবে না, শুধুমাত্র কাস্টমার তথ্য সংরক্ষণ করা হবে'
                   : 'নির্বাচিত SIM দিয়ে স্বাগত বার্তা পাঠানো হবে'}
               </Text>
-            </View>
+            </View> */}
             {/* SIM Selection Modal */}
-            {renderSimSelectionModal()}
+            {/* {renderSimSelectionModal()} */}
 
           </ScrollView>
         ) : (
