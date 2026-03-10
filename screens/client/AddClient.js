@@ -35,6 +35,7 @@ import moment from 'moment';
 import { CheckInternetConnection } from '../../Helpers/Internet/CheckInternetConnection';
 import { SendBulkSMS, SmsStatus } from '../../Helpers/bulksmsapi/BulkSmsApi';
 import axios from 'axios';
+import { BASE_URL } from '../../env';
 
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 const { SmsSender } = NativeModules;
@@ -152,6 +153,40 @@ export default function AddClient({ navigation }) {
       return false;
     }
 
+    // try {
+    //   const checkInternetConnection = await CheckInternetConnection();
+    //   if (!checkInternetConnection.isInternetReachable) {
+    //     console.log('No internet connection');
+    //     return false;
+    //   }
+
+    //   const smsAvailable = await SmsStatus();
+    //   // if (smsAvailable <= 0) {
+    //   //   console.log('No SMS balance available');
+    //   //   return false;
+    //   // }
+
+    //   // Format phone number - ensure it starts with 880
+    //   let formattedPhone = phoneNumber.replace(/\D/g, '');
+    //   if (formattedPhone.startsWith('01')) {
+    //     formattedPhone = '880' + formattedPhone.substring(1);
+    //   }
+
+    //   const encodedMessage = encodeURIComponent(message);
+    //   const url = `${BASE_URL}/sent-sms?phoneNumber=${formattedPhone}&text=${encodedMessage}`;
+    //   console.log('url', url)
+    //   const response = await fetch(url);
+
+    //   const data = await response.json();
+    //   console.log('SMS API Response:', data);
+
+    //   return data.response_code === 202; // 202 = success for bulksmsbd
+    // } catch (error) {
+    //   console.error('Failed to send SMS:', error);
+    //   return false;
+    // }
+    // console.log(checkInternetConnection)
+    // Then your function
     try {
       const checkInternetConnection = await CheckInternetConnection();
       if (!checkInternetConnection.isInternetReachable) {
@@ -159,11 +194,11 @@ export default function AddClient({ navigation }) {
         return false;
       }
 
-      const smsAvailable = await SmsStatus();
-      if (smsAvailable <= 0) {
-        console.log('No SMS balance available');
-        return false;
-      }
+      // const smsAvailable = await SmsStatus();
+      // if (smsAvailable <= 0) {
+      //   console.log('No SMS balance available');
+      //   return false;
+      // }
 
       // Format phone number - ensure it starts with 880
       let formattedPhone = phoneNumber.replace(/\D/g, '');
@@ -172,9 +207,18 @@ export default function AddClient({ navigation }) {
       }
 
       const encodedMessage = encodeURIComponent(message);
-      const url = `http://bulksmsbd.net/api/smsapi?api_key=1nWtRTLWI95Wufjyp07F&type=text&number=${formattedPhone}&senderid=8809648906447&message=${encodedMessage}`;
+
+      // Check if BASE_URL is defined
+      if (!BASE_URL) {
+        console.error('BASE_URL is not defined');
+        return false;
+      }
+
+      const url = `${BASE_URL}/sent-sms?phoneNumber=${formattedPhone}&text=${encodedMessage}`;
+      console.log('Sending request to:', url); // Debug log
 
       const response = await fetch(url);
+
       const data = await response.json();
       console.log('SMS API Response:', data);
 
@@ -183,7 +227,6 @@ export default function AddClient({ navigation }) {
       console.error('Failed to send SMS:', error);
       return false;
     }
-    // console.log(checkInternetConnection)
   };
 
   // Hide snackbar
@@ -584,7 +627,7 @@ export default function AddClient({ navigation }) {
                 // if (clientData.phone && clientData.phone.trim() !== '' && !selectedSim?.isNoSimOption && selectedSim) {
                 if (clientData.phone && clientData.phone.trim() !== '') {
                   try {
-                    const shopName = logedInUserInfo?.shop[0]?.name || 'আমার দোকান';
+                    const shopName = logedInUserInfo?.shop[0]?.title || 'Lenden Boi';
                     const smsMessage = `${clientData.name} কে ${type === 'Customer' ? 'কাস্টমার' : 'সাপ্লায়ার'} হিসাবে যোগ করা হয়েছে।\n${shopName}`;
 
                     await sendSms(clientData.phone, smsMessage);
