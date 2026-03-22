@@ -194,12 +194,6 @@ export default function AddClient({ navigation }) {
         return false;
       }
 
-      // const smsAvailable = await SmsStatus();
-      // if (smsAvailable <= 0) {
-      //   console.log('No SMS balance available');
-      //   return false;
-      // }
-
       // Format phone number - ensure it starts with 880
       let formattedPhone = phoneNumber.replace(/\D/g, '');
       if (formattedPhone.startsWith('01')) {
@@ -588,7 +582,7 @@ export default function AddClient({ navigation }) {
                           }
                         }
 
-                        await sendSms(clientData.phone, smsMessage);
+                        // await sendSms(clientData.phone, smsMessage);
                         console.log('SMS sent successfully:', smsMessage);
                       } catch (smsError) {
                         console.error('Failed to send SMS:', smsError);

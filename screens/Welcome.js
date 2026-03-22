@@ -28,8 +28,16 @@ const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 import moment from 'moment';
 import Drawer from './components/Drawer';
 import BottomMenu from './components/BottomMenu';
+import { TestIds } from 'react-native-google-mobile-ads';
+import MainLayout from './MainLayout';
 
 const { width, height } = Dimensions.get('window');
+
+// Replace with your actual AdMob banner ad unit ID
+// For testing, use TestIds.BANNER
+const adUnitId = __DEV__
+  ? TestIds.BANNER
+  : 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX';
 
 const Welcome = ({ navigation }) => {
   const { singOut, myToken, logedInUserInfo } = React.useContext(AuthContext);
@@ -47,6 +55,7 @@ const Welcome = ({ navigation }) => {
   const searchBarRef = useRef(null);
   const flatListRef = useRef(null);
   const searchTimeoutRef = useRef(null);
+  const [adLoaded, setAdLoaded] = useState(false);
 
   const [totalClient, setTotalClient] = useState(0)
   const [totalClientDue, setTotalClientDue] = useState(0)
@@ -259,7 +268,8 @@ const Welcome = ({ navigation }) => {
 
   const quickActions = [
     { id: 1, url: 'ShortageList', icon: 'alert', label: 'শর্টেজ লিস্ট', color: colors.error, bgColor: '#FFEBEE' },
-    { id: 2, url: 'GroupTagada', icon: 'bell-ring', label: 'গ্রুপ তাগাদা', color: colors.info, bgColor: '#E3F2FD' },
+    // { id: 2, url: 'GroupTagada', icon: 'bell-ring', label: 'গ্রুপ তাগাদা', color: colors.info, bgColor: '#E3F2FD' },
+    { id: 2, url: 'Report', icon: 'chart-bar', label: 'রিপোর্ট', color: colors.info, bgColor: '#E3F2FD' },
     { id: 3, url: 'BackupRestore', icon: 'backup-restore', label: 'ডাটা ব্যাকআপ', color: colors.primary, bgColor: colors.primaryLightest },
     { id: 4, url: 'ExpenseList', icon: 'currency-bdt', label: 'খরচ', color: colors.warning, bgColor: '#FFF3E0' },
   ];
@@ -521,179 +531,190 @@ const Welcome = ({ navigation }) => {
           themeColors={colors}
         />
 
-        <Animated.View style={[
-          styles.mainContent,
-          drawerOpen
-        ]}>
-          <Animated.View style={[styles.headerBackground, { backgroundColor: headerBackground }]} />
+        {/* ✅ Wrap main content in MainLayout */}
+        <MainLayout
+          navigation={navigation}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onToggleDrawer={toggleDrawer}
+          showBottomUI={!isSearching} // ✅ Hide bottom UI when searching
+        >
 
-          <View style={styles.header}>
+          <Animated.View style={[
+            styles.mainContent,
+            drawerOpen
+          ]}>
+            <Animated.View style={[styles.headerBackground, { backgroundColor: headerBackground }]} />
 
-            <View style={styles.headerContent}>
-              <Avatar.Icon
-                size={50}
-                icon="store"
-                style={[styles.avatar, { backgroundColor: colors.primaryLight }]}
-                color="#fff"
-              />
-              <View style={styles.headerTextContainer}>
-                <Text style={styles.greeting}>স্বাগতম!</Text>
-                <Text style={styles.subtitle}>আপনার ব্যবসায়িক সমাধান</Text>
+            <View style={styles.header}>
+              <View style={styles.headerContent}>
+                <Avatar.Icon
+                  size={50}
+                  icon="store"
+                  style={[styles.avatar, { backgroundColor: colors.primaryLight }]}
+                  color="#fff"
+                />
+                <View style={styles.headerTextContainer}>
+                  <Text style={styles.greeting}>স্বাগতম!</Text>
+                  <Text style={styles.subtitle}>আপনার ব্যবসায়িক সমাধান</Text>
+                </View>
               </View>
+
+              <IconButton
+                icon="logout"
+                iconColor="#fff"
+                size={24}
+                onPress={() => navigation.navigate('Schema')}
+              />
             </View>
 
-            <IconButton
-              icon="logout"
-              iconColor="#fff"
-              size={24}
-              onPress={() => navigation.navigate('Schema')}
-            />
-          </View>
-
-          {!isSearching && (
-            <>
-              <View style={styles.statsContainer}>
-                <Card style={[styles.statCard, { marginRight: 6 }]}>
-                  <Card.Content style={styles.statContent}>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                        <IconButton
-                          icon="account-group"
-                          iconColor={colors.primary}
-                          size={18}
-                          style={{ margin: 0, padding: 0, marginRight: 4 }}
-                        />
-                        <Text style={styles.statLabel}>সাপ্লাইয়ার পাবে</Text>
+            {!isSearching && (
+              <>
+                <View style={styles.statsContainer}>
+                  <Card style={[styles.statCard, { marginRight: 6 }]}>
+                    <Card.Content style={styles.statContent}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                          <IconButton
+                            icon="account-group"
+                            iconColor={colors.primary}
+                            size={18}
+                            style={{ margin: 0, padding: 0, marginRight: 4 }}
+                          />
+                          <Text style={styles.statLabel}>সাপ্লাইয়ার পাবে</Text>
+                        </View>
+                        <Text style={[styles.statNumber, { color: colors.textPrimary, textAlign: 'right' }]}>
+                          ৳{Number(totalSupplierDue || 0).toLocaleString('bn-BD')}
+                        </Text>
                       </View>
-                      <Text style={[styles.statNumber, { color: colors.textPrimary, textAlign: 'right' }]}>
-                        ৳{Number(totalSupplierDue || 0).toLocaleString('bn-BD')}
-                      </Text>
-                    </View>
-                  </Card.Content>
-                </Card>
+                    </Card.Content>
+                  </Card>
 
-                <Card style={[styles.statCard, { marginLeft: 6 }]}>
-                  <Card.Content style={styles.statContent}>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                        <IconButton
-                          icon="account"
-                          iconColor={colors.warning}
-                          size={20}
-                          style={{ margin: 0, padding: 0, marginRight: 4 }}
-                        />
-                        <Text style={styles.statLabel}>কাস্টমারের বাকি</Text>
+                  <Card style={[styles.statCard, { marginLeft: 6 }]}>
+                    <Card.Content style={styles.statContent}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                          <IconButton
+                            icon="account"
+                            iconColor={colors.warning}
+                            size={20}
+                            style={{ margin: 0, padding: 0, marginRight: 4 }}
+                          />
+                          <Text style={styles.statLabel}>কাস্টমারের বাকি</Text>
+                        </View>
+                        <Text style={[styles.statNumber, { color: colors.textPrimary, textAlign: 'right' }]}>
+                          ৳{Number(totalClientDue || 0).toLocaleString('bn-BD')}
+                        </Text>
                       </View>
-                      <Text style={[styles.statNumber, { color: colors.textPrimary, textAlign: 'right' }]}>
-                        ৳{Number(totalClientDue || 0).toLocaleString('bn-BD')}
-                      </Text>
-                    </View>
-                  </Card.Content>
-                </Card>
-              </View>
+                    </Card.Content>
+                  </Card>
+                </View>
 
-              <View style={styles.quickActionsWrapper}>
-                {renderQuickActions()}
-              </View>
-            </>
-          )}
+                <View style={styles.quickActionsWrapper}>
+                  {renderQuickActions()}
+                </View>
+              </>
+            )}
 
-          {!isSearching && showAdBanner && (
+            {/* {!isSearching && showAdBanner && (
             <View style={styles.bannerContainer}>
               <AdBanner />
             </View>
-          )}
+          )} */}
 
-          <View style={styles.fixedSearchSection}>
-            <View style={styles.searchBarContainer}>
-              <Searchbar
-                ref={searchBarRef}
-                placeholder="নাম বা ফোন নম্বর সার্চ করুন..."
-                onChangeText={handleSearchChange}
-                onFocus={handleSearchFocus}
-                onBlur={handleSearchBlur}
-                value={searchQuery}
-                style={styles.searchBar}
-                inputStyle={styles.searchInput}
-                iconColor={colors.primary}
-                placeholderTextColor="#999"
-                elevation={1}
-                returnKeyType="search"
-                onSubmitEditing={() => {
-                  Keyboard.dismiss();
-                }}
-                icon={searchQuery ? "close" : "magnify"}
-                onIconPress={() => {
-                  if (searchQuery) {
-                    handleClearSearch();
-                  } else {
-                    if (searchBarRef.current) {
-                      searchBarRef.current.focus();
+            <View style={styles.fixedSearchSection}>
+              <View style={styles.searchBarContainer}>
+                <Searchbar
+                  ref={searchBarRef}
+                  placeholder="নাম বা ফোন নম্বর সার্চ করুন..."
+                  onChangeText={handleSearchChange}
+                  onFocus={handleSearchFocus}
+                  onBlur={handleSearchBlur}
+                  value={searchQuery}
+                  style={styles.searchBar}
+                  inputStyle={styles.searchInput}
+                  iconColor={colors.primary}
+                  placeholderTextColor="#999"
+                  elevation={1}
+                  returnKeyType="search"
+                  onSubmitEditing={() => {
+                    Keyboard.dismiss();
+                  }}
+                  icon={searchQuery ? "close" : "magnify"}
+                  onIconPress={() => {
+                    if (searchQuery) {
+                      handleClearSearch();
+                    } else {
+                      if (searchBarRef.current) {
+                        searchBarRef.current.focus();
+                      }
                     }
-                  }
-                }}
-                right={null}
-              />
-              {searchLoading && (
-                <View style={styles.searchLoadingIndicator}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                </View>
-              )}
+                  }}
+                  right={null}
+                />
+                {searchLoading && (
+                  <View style={styles.searchLoadingIndicator}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  </View>
+                )}
+              </View>
             </View>
-          </View>
 
-          <View style={styles.contactsContainer}>
-            <Text style={styles.searchResultsTitle}>
-              {isSearching ? 'খুঁজে পাওয়া গেছে' : 'সকল'} কন্টাক্ট
-              ({isSearching ? filteredContacts.length : totalClient})
-            </Text>
+            <View style={styles.contactsContainer}>
+              <Text style={styles.searchResultsTitle}>
+                {isSearching ? 'খুঁজে পাওয়া গেছে' : 'সকল'} কন্টাক্ট
+                ({isSearching ? filteredContacts.length : totalClient})
+              </Text>
 
-            <FlatList
-              ref={flatListRef}
-              data={filteredContacts}
-              renderItem={renderContactItem}
-              keyExtractor={keyExtractor}
-              getItemLayout={getItemLayout}
-              initialNumToRender={15}
-              maxToRenderPerBatch={10}
-              windowSize={21}
-              removeClippedSubviews={Platform.OS === 'android'}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              ItemSeparatorComponent={ItemSeparator}
-              ListFooterComponent={ListFooterComponent}
-              ListEmptyComponent={ListEmptyComponent}
-              onRefresh={handleRefresh}
-              refreshing={refreshing}
-              contentContainerStyle={[
-                styles.listContainer,
-                filteredContacts.length === 0 && styles.emptyListContainer,
-                { paddingBottom: 120 } // Add extra scroll height here
-              ]}
-            />
-          </View>
+              <FlatList
+                ref={flatListRef}
+                data={filteredContacts}
+                renderItem={renderContactItem}
+                keyExtractor={keyExtractor}
+                getItemLayout={getItemLayout}
+                initialNumToRender={15}
+                maxToRenderPerBatch={10}
+                windowSize={21}
+                removeClippedSubviews={Platform.OS === 'android'}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                ItemSeparatorComponent={ItemSeparator}
+                ListFooterComponent={ListFooterComponent}
+                ListEmptyComponent={ListEmptyComponent}
+                onRefresh={handleRefresh}
+                refreshing={refreshing}
+                contentContainerStyle={[
+                  styles.listContainer,
+                  filteredContacts.length === 0 && styles.emptyListContainer,
+                  { paddingBottom: Platform.OS === 'ios' ? 180 : 160 } // Increased bottom padding for banner + menu
+                ]}
+              />
+            </View>
 
-          {!isSearching && (
-            <FAB
-              icon="account-plus"
-              label={'নতুন যোগ করুন'}
-              style={[styles.fab, { backgroundColor: colors.primary }]}
-              onPress={() => {
-                Keyboard.dismiss();
-                navigation.navigate('AddClient')
-              }}
-              color="#fff"
-            />
-          )}
-
-          {!isSearching && (
+            {/* Banner and BottomMenu stacked - Banner on top, BottomMenu below */}
+            {/* {!isSearching && (
             <BottomMenu
               activeTab={activeTab}
               onTabPress={handleTabPress}
               themeColors={colors}
+              setAdLoaded={setAdLoaded}   // ✅ pass the setter, not the value
+              TestIds={TestIds}
             />
-          )}
-        </Animated.View>
+          )} */}
+          </Animated.View>
+        </MainLayout>
+        {!isSearching && (
+          <FAB
+            icon="account-plus"
+            label={'নতুন যোগ করুন'}
+            style={[styles.fab, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              Keyboard.dismiss();
+              navigation.navigate('AddClient')
+            }}
+            color="#fff"
+          />
+        )}
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );
@@ -847,7 +868,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between', // Keep this for the icon button alignment
+    justifyContent: 'space-between',
     zIndex: 1,
   },
   headerContent: {
@@ -1152,9 +1173,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     margin: 16,
     right: 0,
-    bottom: Platform.OS === 'ios' ? 90 : 70,
+    bottom: Platform.OS === 'ios' ? 170 : 145, // Increased to clear banner + menu
     zIndex: 1000,
   },
+
 });
 
 export default Welcome;

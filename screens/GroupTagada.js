@@ -159,195 +159,195 @@ const GroupTagada = ({ route, navigation }) => {
   const onDismissSnackbar = () => setSnackbarVisible(false);
 
   // Load saved SIM selection from database
-  const loadSavedSimSelection = () => {
-    return new Promise((resolve) => {
-      db.transaction(tx => {
-        tx.executeSql(
-          'SELECT * FROM sms_settings WHERE shop_id = ? LIMIT 1',
-          [logedInUserInfo?.shop[0]?.id],
-          (tx, results) => {
-            if (results.rows.length > 0) {
-              const savedSim = results.rows.item(0);
-              setSavedSimData(savedSim);
-              console.log('Loaded saved SIM data:', savedSim);
-              resolve(savedSim);
-            } else {
-              console.log('No saved SIM data found');
-              resolve(null);
-            }
-          },
-          (tx, error) => {
-            console.error('Error loading saved SIM data:', error);
-            resolve(null);
-          }
-        );
-      });
-    });
-  };
+  // const loadSavedSimSelection = () => {
+  //   return new Promise((resolve) => {
+  //     db.transaction(tx => {
+  //       tx.executeSql(
+  //         'SELECT * FROM sms_settings WHERE shop_id = ? LIMIT 1',
+  //         [logedInUserInfo?.shop[0]?.id],
+  //         (tx, results) => {
+  //           if (results.rows.length > 0) {
+  //             const savedSim = results.rows.item(0);
+  //             setSavedSimData(savedSim);
+  //             console.log('Loaded saved SIM data:', savedSim);
+  //             resolve(savedSim);
+  //           } else {
+  //             console.log('No saved SIM data found');
+  //             resolve(null);
+  //           }
+  //         },
+  //         (tx, error) => {
+  //           console.error('Error loading saved SIM data:', error);
+  //           resolve(null);
+  //         }
+  //       );
+  //     });
+  //   });
+  // };
 
   // Save SIM selection to database
-  const saveSimSelectionToDb = (simData) => {
-    return new Promise((resolve, reject) => {
-      db.transaction(tx => {
-        // First check if setting exists
-        tx.executeSql(
-          'SELECT * FROM sms_settings WHERE shop_id = ?',
-          [logedInUserInfo?.shop[0]?.id],
-          (tx, checkResults) => {
-            if (checkResults.rows.length > 0) {
-              // Update existing record
-              tx.executeSql(
-                'UPDATE sms_settings SET selected_sim_id = ?, sim_display_name = ?, subscription_id = ?, is_no_sim_option = ?, updated_at = ? WHERE shop_id = ?',
-                [
-                  simData.id,
-                  simData.displayName,
-                  simData.subscriptionId || null,
-                  simData.isNoSimOption ? 1 : 0,
-                  moment().format('YYYY-MM-DD HH:mm:ss'),
-                  logedInUserInfo?.shop[0]?.id
-                ],
-                (tx, updateResults) => {
-                  console.log('SIM selection updated in database');
-                  setSavedSimData(simData);
-                  resolve(true);
-                },
-                (tx, updateError) => {
-                  console.error('Error updating SIM selection:', updateError);
-                  reject(updateError);
-                }
-              );
-            } else {
-              // Insert new record
-              const settingId = `SMS_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-              tx.executeSql(
-                'INSERT INTO sms_settings (id, shop_id, selected_sim_id, sim_display_name, subscription_id, is_no_sim_option, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [
-                  settingId,
-                  logedInUserInfo?.shop[0]?.id,
-                  simData.id,
-                  simData.displayName,
-                  simData.subscriptionId || null,
-                  simData.isNoSimOption ? 1 : 0,
-                  moment().format('YYYY-MM-DD HH:mm:ss'),
-                  moment().format('YYYY-MM-DD HH:mm:ss')
-                ],
-                (tx, insertResults) => {
-                  console.log('SIM selection saved to database');
-                  setSavedSimData(simData);
-                  resolve(true);
-                },
-                (tx, insertError) => {
-                  console.error('Error saving SIM selection:', insertError);
-                  reject(insertError);
-                }
-              );
-            }
-          },
-          (tx, checkError) => {
-            console.error('Error checking SIM settings:', checkError);
-            reject(checkError);
-          }
-        );
-      });
-    });
-  };
+  // const saveSimSelectionToDb = (simData) => {
+  //   return new Promise((resolve, reject) => {
+  //     db.transaction(tx => {
+  //       // First check if setting exists
+  //       tx.executeSql(
+  //         'SELECT * FROM sms_settings WHERE shop_id = ?',
+  //         [logedInUserInfo?.shop[0]?.id],
+  //         (tx, checkResults) => {
+  //           if (checkResults.rows.length > 0) {
+  //             // Update existing record
+  //             tx.executeSql(
+  //               'UPDATE sms_settings SET selected_sim_id = ?, sim_display_name = ?, subscription_id = ?, is_no_sim_option = ?, updated_at = ? WHERE shop_id = ?',
+  //               [
+  //                 simData.id,
+  //                 simData.displayName,
+  //                 simData.subscriptionId || null,
+  //                 simData.isNoSimOption ? 1 : 0,
+  //                 moment().format('YYYY-MM-DD HH:mm:ss'),
+  //                 logedInUserInfo?.shop[0]?.id
+  //               ],
+  //               (tx, updateResults) => {
+  //                 console.log('SIM selection updated in database');
+  //                 setSavedSimData(simData);
+  //                 resolve(true);
+  //               },
+  //               (tx, updateError) => {
+  //                 console.error('Error updating SIM selection:', updateError);
+  //                 reject(updateError);
+  //               }
+  //             );
+  //           } else {
+  //             // Insert new record
+  //             const settingId = `SMS_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  //             tx.executeSql(
+  //               'INSERT INTO sms_settings (id, shop_id, selected_sim_id, sim_display_name, subscription_id, is_no_sim_option, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+  //               [
+  //                 settingId,
+  //                 logedInUserInfo?.shop[0]?.id,
+  //                 simData.id,
+  //                 simData.displayName,
+  //                 simData.subscriptionId || null,
+  //                 simData.isNoSimOption ? 1 : 0,
+  //                 moment().format('YYYY-MM-DD HH:mm:ss'),
+  //                 moment().format('YYYY-MM-DD HH:mm:ss')
+  //               ],
+  //               (tx, insertResults) => {
+  //                 console.log('SIM selection saved to database');
+  //                 setSavedSimData(simData);
+  //                 resolve(true);
+  //               },
+  //               (tx, insertError) => {
+  //                 console.error('Error saving SIM selection:', insertError);
+  //                 reject(insertError);
+  //               }
+  //             );
+  //           }
+  //         },
+  //         (tx, checkError) => {
+  //           console.error('Error checking SIM settings:', checkError);
+  //           reject(checkError);
+  //         }
+  //       );
+  //     });
+  //   });
+  // };
 
   // Fetch SIM cards with "No SIM" option
-  const fetchSimCards = async () => {
-    try {
-      setIsLoadingSims(true);
+  // const fetchSimCards = async () => {
+  //   try {
+  //     setIsLoadingSims(true);
 
-      // Load saved SIM selection
-      const savedSim = await loadSavedSimSelection();
+  //     // Load saved SIM selection
+  //     const savedSim = await loadSavedSimSelection();
 
-      const sims = await SimCardsManager.getSimCards();
+  //     const sims = await SimCardsManager.getSimCards();
 
-      // Format SIM cards data
-      const formattedSims = sims.map((sim, index) => ({
-        ...sim,
-        id: sim.subscriptionId || index.toString(),
-        displayName: sim.displayName || sim.carrierName || `SIM ${index + 1}`,
-        isActive: true,
-        phoneNumber: sim.phoneNumber || sim.number || 'নম্বর নেই',
-        isNoSimOption: false // Mark as real SIM card
-      }));
+  //     // Format SIM cards data
+  //     const formattedSims = sims.map((sim, index) => ({
+  //       ...sim,
+  //       id: sim.subscriptionId || index.toString(),
+  //       displayName: sim.displayName || sim.carrierName || `SIM ${index + 1}`,
+  //       isActive: true,
+  //       phoneNumber: sim.phoneNumber || sim.number || 'নম্বর নেই',
+  //       isNoSimOption: false // Mark as real SIM card
+  //     }));
 
-      // Add "No SIM card selected" option as the first item
-      const noSimOption = {
-        id: 'no-sim-selected',
-        displayName: 'SMS পাঠাবেন না',
-        isActive: false,
-        phoneNumber: null,
-        isNoSimOption: true,
-        subscriptionId: null
-      };
+  //     // Add "No SIM card selected" option as the first item
+  //     const noSimOption = {
+  //       id: 'no-sim-selected',
+  //       displayName: 'SMS পাঠাবেন না',
+  //       isActive: false,
+  //       phoneNumber: null,
+  //       isNoSimOption: true,
+  //       subscriptionId: null
+  //     };
 
-      // Add no SIM option to the beginning of the list
-      const allOptions = [noSimOption, ...formattedSims];
+  //     // Add no SIM option to the beginning of the list
+  //     const allOptions = [noSimOption, ...formattedSims];
 
-      setSimCards(allOptions);
+  //     setSimCards(allOptions);
 
-      // Set selected SIM based on saved data or default to "No SIM" option
-      if (savedSim) {
-        // Find matching SIM from the list
-        let selected = allOptions.find(sim =>
-          sim.id === savedSim.selected_sim_id ||
-          (sim.isNoSimOption && savedSim.is_no_sim_option === 1)
-        );
+  //     // Set selected SIM based on saved data or default to "No SIM" option
+  //     if (savedSim) {
+  //       // Find matching SIM from the list
+  //       let selected = allOptions.find(sim =>
+  //         sim.id === savedSim.selected_sim_id ||
+  //         (sim.isNoSimOption && savedSim.is_no_sim_option === 1)
+  //       );
 
-        if (selected) {
-          setSelectedSim(selected);
-        } else {
-          // If saved SIM not found in current list, default to "No SIM"
-          setSelectedSim(noSimOption);
-        }
-      } else {
-        // No saved data, default to "No SIM" option
-        setSelectedSim(noSimOption);
-      }
+  //       if (selected) {
+  //         setSelectedSim(selected);
+  //       } else {
+  //         // If saved SIM not found in current list, default to "No SIM"
+  //         setSelectedSim(noSimOption);
+  //       }
+  //     } else {
+  //       // No saved data, default to "No SIM" option
+  //       setSelectedSim(noSimOption);
+  //     }
 
-    } catch (error) {
-      console.error('Error fetching SIM cards:', error);
+  //   } catch (error) {
+  //     console.error('Error fetching SIM cards:', error);
 
-      // Even if error occurs, create the no SIM option
-      const noSimOption = {
-        id: 'no-sim-selected',
-        displayName: 'SMS পাঠাবেন না',
-        isActive: false,
-        phoneNumber: null,
-        isNoSimOption: true,
-        subscriptionId: null
-      };
+  //     // Even if error occurs, create the no SIM option
+  //     const noSimOption = {
+  //       id: 'no-sim-selected',
+  //       displayName: 'SMS পাঠাবেন না',
+  //       isActive: false,
+  //       phoneNumber: null,
+  //       isNoSimOption: true,
+  //       subscriptionId: null
+  //     };
 
-      setSimCards([noSimOption]);
-      setSelectedSim(noSimOption);
+  //     setSimCards([noSimOption]);
+  //     setSelectedSim(noSimOption);
 
-      showSnackbar('SIM তথ্য লোড করতে সমস্যা হয়েছে', 'error');
-    } finally {
-      setIsLoadingSims(false);
-    }
-  };
+  //     showSnackbar('SIM তথ্য লোড করতে সমস্যা হয়েছে', 'error');
+  //   } finally {
+  //     setIsLoadingSims(false);
+  //   }
+  // };
 
   // Request SMS permissions
-  const requestPermissions = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.SEND_SMS,
-          PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
-        ]);
+  // const requestPermissions = async () => {
+  //   if (Platform.OS === 'android') {
+  //     try {
+  //       const granted = await PermissionsAndroid.requestMultiple([
+  //         PermissionsAndroid.PERMISSIONS.SEND_SMS,
+  //         PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
+  //       ]);
 
-        const smsGranted = granted[PermissionsAndroid.PERMISSIONS.SEND_SMS] === PermissionsAndroid.RESULTS.GRANTED;
-        const phoneGranted = granted[PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE] === PermissionsAndroid.RESULTS.GRANTED;
+  //       const smsGranted = granted[PermissionsAndroid.PERMISSIONS.SEND_SMS] === PermissionsAndroid.RESULTS.GRANTED;
+  //       const phoneGranted = granted[PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE] === PermissionsAndroid.RESULTS.GRANTED;
 
-        return smsGranted && phoneGranted;
-      } catch (err) {
-        console.error('Permission request error:', err);
-        return false;
-      }
-    }
-    return true;
-  };
+  //       return smsGranted && phoneGranted;
+  //     } catch (err) {
+  //       console.error('Permission request error:', err);
+  //       return false;
+  //     }
+  //   }
+  //   return true;
+  // };
 
   // Send SMS function
   const sendSms = async (phoneNumber, message) => {

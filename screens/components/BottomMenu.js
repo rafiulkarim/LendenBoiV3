@@ -2,13 +2,19 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { IconButton, Text } from 'react-native-paper';
 
-const BottomMenu = ({ activeTab, onTabPress, themeColors }) => {
+import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
+
+const BottomMenu = ({ activeTab, onTabPress, themeColors, setAdLoaded, TestIds }) => {
   const bottomTabs = [
     { id: 'home', label: 'হোম', icon: 'home-outline', activeIcon: 'home', navigate: "Welcome" },
     { id: 'contacts', label: 'কাস্টমার', icon: 'account-multiple-outline', activeIcon: 'account-multiple', navigate: "ClientList" },
-    { id: 'reports', label: 'রিপোর্ট', icon: 'chart-bar', activeIcon: 'chart-bar', navigate: "Report" },
+    // { id: 'reports', label: 'রিপোর্ট', icon: 'chart-bar', activeIcon: 'chart-bar', navigate: "Report" },
     { id: 'menu', label: 'মেনু', icon: 'menu', activeIcon: 'menu', navigate: "" },
   ];
+
+  const adUnitId = __DEV__
+    ? TestIds.BANNER
+    : 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX';
 
   const handleTabPress = (tabId, navigateMenu) => {
     if (onTabPress) {
@@ -16,34 +22,57 @@ const BottomMenu = ({ activeTab, onTabPress, themeColors }) => {
     }
   };
 
-  return (
-    <View style={styles.bottomMenu}>
-      {bottomTabs.map((tab) => (
-        <TouchableOpacity
-          key={tab.id}
-          style={styles.bottomMenuItem}
-          onPress={() => handleTabPress(tab.id, tab.navigate)}
-          activeOpacity={0.7}
-        >
-          <IconButton
-            icon={activeTab === tab.id ? tab.activeIcon : tab.icon}
-            size={24}
-            iconColor={activeTab === tab.id ? themeColors?.primary : themeColors?.textPrimary}
-            style={styles.bottomMenuIcon}
-          />
-          <Text style={[
-            styles.bottomMenuLabel,
-            { color: activeTab === tab.id ? themeColors?.primary : themeColors?.textPrimary }
-          ]}>
-            {tab.label}
-          </Text>
-
-          {activeTab === tab.id && (
-            <View style={[styles.activeTabIndicator, { backgroundColor: themeColors?.primary }]} />
-          )}
-        </TouchableOpacity>
-      ))}
+  // Render AdMob banner — floats above BottomMenu
+  const renderAdMobBanner = () => (
+    <View style={styles.adMobContainer}>
+      <BannerAd
+        unitId={adUnitId}
+        size={BannerAdSize.ADAPTIVE_BANNER}
+        requestOptions={{ requestNonPersonalizedAdsOnly: true }}
+        onAdLoaded={() => {
+          setAdLoaded(setAdLoaded)
+          console.log('Ad Load Successfully')
+        }}           // ✅
+        onAdFailedToLoad={(error) => {
+          console.error('Ad failed to load:', error.code, error.message);
+          setAdLoaded(false);                           // ✅
+        }}
+      />
     </View>
+  );
+
+  return (
+    <>
+      {renderAdMobBanner()}
+      <View style={styles.bottomMenu}>
+        {bottomTabs.map((tab) => (
+          <TouchableOpacity
+            key={tab.id}
+            style={styles.bottomMenuItem}
+            onPress={() => handleTabPress(tab.id, tab.navigate)}
+            activeOpacity={0.7}
+          >
+            <IconButton
+              icon={activeTab === tab.id ? tab.activeIcon : tab.icon}
+              size={24}
+              iconColor={activeTab === tab.id ? themeColors?.primary : themeColors?.textPrimary}
+              style={styles.bottomMenuIcon}
+            />
+            <Text style={[
+              styles.bottomMenuLabel,
+              { color: activeTab === tab.id ? themeColors?.primary : themeColors?.textPrimary }
+            ]}>
+              {tab.label}
+            </Text>
+
+            {activeTab === tab.id && (
+              <View style={[styles.activeTabIndicator, { backgroundColor: themeColors?.primary }]} />
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </>
+
   );
 };
 
@@ -69,7 +98,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 5,
     position: 'relative',
   },
   bottomMenuIcon: {
@@ -78,7 +107,7 @@ const styles = StyleSheet.create({
   bottomMenuLabel: {
     fontSize: 11,
     fontWeight: '500',
-    marginTop: 4,
+    // marginTop: 4,
   },
   activeTabIndicator: {
     position: 'absolute',
@@ -87,6 +116,27 @@ const styles = StyleSheet.create({
     height: 3,
     borderBottomLeftRadius: 2,
     borderBottomRightRadius: 2,
+  },
+  bottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 999,
+  },
+  adMobContainer: {
+    position: 'absolute',
+    bottom: 67,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    // elevation: 10,
+    backgroundColor: '#ffffff',
+    paddingVertical: 10,
+    // paddingHorizontal: 2,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
   },
 });
 

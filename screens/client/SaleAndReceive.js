@@ -40,6 +40,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CheckInternetConnection } from '../../Helpers/Internet/CheckInternetConnection';
 import { SmsStatus } from '../../Helpers/bulksmsapi/BulkSmsApi';
+import { BASE_URL } from '../../env';
 
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 const { SmsSender } = NativeModules;
@@ -441,11 +442,11 @@ const SaleAndReceive = ({ navigation, route }) => {
         return false;
       }
 
-      const smsAvailable = await SmsStatus();
-      if (smsAvailable <= 0) {
-        console.log('No SMS balance available');
-        return false;
-      }
+      // const smsAvailable = await SmsStatus();
+      // if (smsAvailable <= 0) {
+      //   console.log('No SMS balance available');
+      //   return false;
+      // }
 
       // Format phone number - ensure it starts with 880
       let formattedPhone = phoneNumber.replace(/\D/g, '');
@@ -454,9 +455,18 @@ const SaleAndReceive = ({ navigation, route }) => {
       }
 
       const encodedMessage = encodeURIComponent(message);
-      const url = `http://bulksmsbd.net/api/smsapi?api_key=1nWtRTLWI95Wufjyp07F&type=text&number=${formattedPhone}&senderid=8809648906447&message=${encodedMessage}`;
+
+      // Check if BASE_URL is defined
+      if (!BASE_URL) {
+        console.error('BASE_URL is not defined');
+        return false;
+      }
+
+      const url = `${BASE_URL}/sent-sms?phoneNumber=${formattedPhone}&text=${encodedMessage}`;
+      console.log('Sending request to:', url); // Debug log
 
       const response = await fetch(url);
+
       const data = await response.json();
       console.log('SMS API Response:', data);
 
@@ -641,7 +651,7 @@ const SaleAndReceive = ({ navigation, route }) => {
                       }
                     }
 
-                    await sendSms(clientData.phone_no, smsMessage);
+                    // await sendSms(clientData.phone_no, smsMessage);
                     console.log('SMS sent successfully:', smsMessage);
                   } catch (smsError) {
                     console.error('Failed to send SMS:', smsError);

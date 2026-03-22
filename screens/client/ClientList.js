@@ -29,7 +29,8 @@ import { openDatabase } from 'react-native-sqlite-storage';
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 import moment from 'moment';
 import Drawer from '../components/Drawer';
-import BottomMenu from '../components/BottomMenu';
+// import BottomMenu from '../components/BottomMenu';
+import MainLayout from '../MainLayout';
 
 const { width, height } = Dimensions.get('window');
 
@@ -516,88 +517,96 @@ const ClientList = ({ route, navigation }) => {
           themeColors={colors}
         />
 
-        <Animated.View style={[
-          styles.mainContent,
-          drawerOpen && styles.mainContentShifted
-        ]}>
-          {/* Search Bar */}
-          <View style={styles.fixedSearchSection}>
-            <View style={styles.searchBarContainer}>
-              <Searchbar
-                placeholder="নাম বা ফোন নম্বর দ্বারা খুঁজুন..."
-                onChangeText={handleSearchChange}
-                value={searchQuery}
-                style={styles.searchBar}
-                inputStyle={styles.searchInput}
-                iconColor={colors.primary}
-                placeholderTextColor="#999"
-                clearButtonMode="while-editing"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              {loading && !refreshing && (
-                <ActivityIndicator
-                  size="small"
-                  color={colors.primary}
-                  style={styles.searchLoadingIndicator}
+        {/* ✅ Wrap main content with MainLayout */}
+        <MainLayout
+          navigation={navigation}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onToggleDrawer={toggleDrawer}
+          showBottomUI={!isSearching} // ✅ Hide when searching
+        >
+          <Animated.View style={[
+            styles.mainContent,
+            drawerOpen && styles.mainContentShifted
+          ]}>
+            {/* Search Bar */}
+            <View style={styles.fixedSearchSection}>
+              <View style={styles.searchBarContainer}>
+                <Searchbar
+                  placeholder="নাম বা ফোন নম্বর দ্বারা খুঁজুন..."
+                  onChangeText={handleSearchChange}
+                  value={searchQuery}
+                  style={styles.searchBar}
+                  inputStyle={styles.searchInput}
+                  iconColor={colors.primary}
+                  placeholderTextColor="#999"
+                  clearButtonMode="while-editing"
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
-              )}
+                {loading && !refreshing && (
+                  <ActivityIndicator
+                    size="small"
+                    color={colors.primary}
+                    style={styles.searchLoadingIndicator}
+                  />
+                )}
+              </View>
             </View>
-          </View>
 
-          {/* Contacts List */}
-          <FlatList
-            ref={flatListRef}
-            data={contactList}
-            renderItem={renderContactItem}
-            keyExtractor={getItemKey}
-            ListHeaderComponent={renderSearchHeader}
-            contentContainerStyle={[
-              styles.listContainer,
-              contactList.length === 0 && styles.emptyListContainer,
-              { paddingBottom: 120 } // Add extra scroll height here
-            ]}
-            style={styles.contactsContainer}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                colors={[colors.primary]}
-                tintColor={colors.primary}
-              />
-            }
-            ListFooterComponent={renderFooter}
-            ListEmptyComponent={renderEmptyList}
-            onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.3}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-            showsVerticalScrollIndicator={false}
-            initialNumToRender={10}
-            maxToRenderPerBatch={10}
-            windowSize={10}
-            removeClippedSubviews={Platform.OS === 'android'}
-            keyboardShouldPersistTaps="handled"
-          />
-
-          {/* Add Client FAB - Hide during search */}
-          {!isSearching && (
-            <FAB
-              icon="plus"
-              style={[styles.fab, { backgroundColor: colors.primary }]}
-              color="#fff"
-              onPress={() => navigation.navigate('AddClient')}
+            {/* Contacts List */}
+            <FlatList
+              ref={flatListRef}
+              data={contactList}
+              renderItem={renderContactItem}
+              keyExtractor={getItemKey}
+              ListHeaderComponent={renderSearchHeader}
+              contentContainerStyle={[
+                styles.listContainer,
+                contactList.length === 0 && styles.emptyListContainer,
+                { paddingBottom: 120 } // Add extra scroll height here
+              ]}
+              style={styles.contactsContainer}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={handleRefresh}
+                  colors={[colors.primary]}
+                  tintColor={colors.primary}
+                />
+              }
+              ListFooterComponent={renderFooter}
+              ListEmptyComponent={renderEmptyList}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.3}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              showsVerticalScrollIndicator={false}
+              initialNumToRender={10}
+              maxToRenderPerBatch={10}
+              windowSize={10}
+              removeClippedSubviews={Platform.OS === 'android'}
+              keyboardShouldPersistTaps="handled"
             />
-          )}
 
-          {/* Bottom Menu - Hide during search */}
-          {!isSearching && (
+            {/* Bottom Menu - Hide during search */}
+            {/* {!isSearching && (
             <BottomMenu
               activeTab={activeTab}
               onTabPress={handleTabPress}
               themeColors={colors}
             />
-          )}
-        </Animated.View>
+          )} */}
+          </Animated.View>
+        </MainLayout>
+        {/* Add Client FAB - Hide during search */}
+        {!isSearching && (
+          <FAB
+            icon="plus"
+            style={[styles.fab, { backgroundColor: colors.primary }]}
+            color="#fff"
+            onPress={() => navigation.navigate('AddClient')}
+          />
+        )}
       </SafeAreaView>
     </TouchableWithoutFeedback>
   )
