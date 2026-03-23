@@ -1097,26 +1097,26 @@ export default function AddClient({ navigation }) {
             </View>
           </View>
 
-        </ScrollView>
+          {/* Submit Button */}
+          <View style={styles.footer}>
+            <Button
+              mode="contained"
+              disabled={!isFormValid || isSubmitting}
+              style={[
+                styles.submitBtn,
+                {
+                  backgroundColor: isFormValid ? colors.primary : colors.primaryLighter
+                }
+              ]}
+              labelStyle={{ color: '#fff' }}
+              onPress={handleSubmit}
+              loading={isSubmitting}
+            >
+              {isSubmitting ? 'সেভ হচ্ছে...' : 'নিশ্চিত'}
+            </Button>
+          </View>
 
-        {/* Submit Button */}
-        <View style={styles.footer}>
-          <Button
-            mode="contained"
-            disabled={!isFormValid || isSubmitting}
-            style={[
-              styles.submitBtn,
-              {
-                backgroundColor: isFormValid ? colors.primary : colors.primaryLighter
-              }
-            ]}
-            labelStyle={{ color: '#fff' }}
-            onPress={handleSubmit}
-            loading={isSubmitting}
-          >
-            {isSubmitting ? 'সেভ হচ্ছে...' : 'নিশ্চিত'}
-          </Button>
-        </View>
+        </ScrollView>
 
         {/* Snackbar for success/error messages */}
         <Snackbar
@@ -1245,7 +1245,7 @@ export default function AddClient({ navigation }) {
           </View>
         </Modal>
       </View>
-    </TouchableWithoutFeedback>
+    </TouchableWithoutFeedback >
   );
 }
 
@@ -1354,6 +1354,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#eee',
     backgroundColor: '#fff',
+    marginBottom: 20
   },
   submitBtn: {
     borderRadius: 24,

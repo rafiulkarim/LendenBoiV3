@@ -54,14 +54,30 @@ const MainLayout = ({ children, navigation, activeTab, setActiveTab, onToggleDra
             />
           </View> */}
 
+          {/* <View style={styles.adMobContainer}>
+            <BannerAd
+              unitId={adUnitId}
+              size={BannerAdSize.BANNER}
+              requestOptions={{ requestNonPersonalizedAdsOnly: true }}
+              onAdLoaded={() => {
+                setAdLoaded(setAdLoaded)
+                console.log('Ad Load Successfully')
+              }}           // ✅
+              onAdFailedToLoad={(error) => {
+                console.error('Ad failed to load:', error.code, error.message);
+                setAdLoaded(false);                           // ✅
+              }}
+            />
+          </View> */}
+
           {/* ✅ BottomMenu below banner */}
-          <BottomMenu
+          {/* <BottomMenu
             activeTab={activeTab}
             onTabPress={handleTabPress}
             themeColors={colors}
             setAdLoaded={setAdLoaded}
             TestIds={TestIds}
-          />
+          /> */}
         </View>
       )}
     </View>
@@ -90,6 +106,27 @@ const styles = StyleSheet.create({
   bannerWrapper: {
     alignItems: 'center',
     backgroundColor: '#fff',
+  },
+  bottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 999,
+  },
+  adMobContainer: {
+    position: 'absolute',
+    bottom: 67,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    // elevation: 10,
+    backgroundColor: '#ffffff',
+    paddingVertical: 10,
+    // paddingHorizontal: 2,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
   },
 });
 
