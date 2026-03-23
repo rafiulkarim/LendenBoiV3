@@ -27,9 +27,11 @@ import PersistentAdBanner from './screens/components/PersistentAdBanner';
 import BottomMenu from './screens/components/BottomMenu';
 import { TestIds } from 'react-native-google-mobile-ads';
 
-// ✅ Create a context so any screen can call setIsSearching
+// ✅ Added drawerOpen + setDrawerOpen to context
 export const SearchContext = React.createContext({
   setGlobalSearching: () => { },
+  drawerOpen: false,
+  setDrawerOpen: () => { },
 });
 
 const Stack = createNativeStackNavigator();
@@ -42,10 +44,10 @@ export default function App({ navigation }) {
   const [userInfo, setUserInfo] = useState('');
   const [currentScreen, setCurrentScreen] = useState('Welcome');
   const [activeTab, setActiveTab] = useState('home');
-  const [drawerOpen, setDrawerOpen] = useState(false);
-
-  // ✅ Global searching state — controlled by individual screens via context
   const [isSearching, setIsSearching] = useState(false);
+
+  // ✅ drawerOpen lives here — shared via context
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const navigationRef = useRef(null);
 
@@ -89,14 +91,13 @@ export default function App({ navigation }) {
 
   const handleTabPress = (tabId, navigateMenu) => {
     if (tabId === 'menu') {
-      setDrawerOpen(prev => !prev);
+      setDrawerOpen(prev => !prev); // ✅ toggles shared drawerOpen
     } else if (navigateMenu && navigationRef.current) {
       navigationRef.current.navigate(navigateMenu);
       setActiveTab(tabId);
     }
   };
 
-  // ✅ Hide bottom bar if searching OR not on a menu screen
   const showBottomMenu = isLogedIn != null && SCREENS_WITH_BOTTOM_MENU.includes(currentScreen) && !isSearching;
   const showAdBanner = isLogedIn != null && !isSearching;
 
@@ -113,8 +114,12 @@ export default function App({ navigation }) {
 
   return (
     <AuthContext.Provider value={{ singIn, singOut, myToken: isLogedIn, logedInUserInfo: userInfo }}>
-      {/* ✅ Provide setGlobalSearching so any screen can update isSearching */}
-      <SearchContext.Provider value={{ setGlobalSearching: setIsSearching }}>
+      {/* ✅ Pass drawerOpen + setDrawerOpen through context */}
+      <SearchContext.Provider value={{
+        setGlobalSearching: setIsSearching,
+        drawerOpen,
+        setDrawerOpen,
+      }}>
         <StatusBar backgroundColor='#00A8A8' />
 
         <View style={styles.root}>
@@ -126,8 +131,8 @@ export default function App({ navigation }) {
                 const currentRoute = navigationRef.current?.getCurrentRoute();
                 if (currentRoute?.name) {
                   setCurrentScreen(currentRoute.name);
-                  // ✅ Reset searching state on every screen change
                   setIsSearching(false);
+                  setDrawerOpen(false); // ✅ close drawer on screen change
                   if (currentRoute.name === 'Welcome') setActiveTab('home');
                   else if (currentRoute.name === 'ClientList') setActiveTab('contacts');
                 }
@@ -160,10 +165,8 @@ export default function App({ navigation }) {
             </NavigationContainer>
           </View>
 
-          {/* ✅ Hide both BottomMenu and Ad when searching */}
-          {/* {(showBottomMenu || showAdBanner) && ( */}
           <View style={styles.bottomBar}>
-            <PersistentAdBanner />
+            {showAdBanner && <PersistentAdBanner />}
             {showBottomMenu && (
               <BottomMenu
                 activeTab={activeTab}
@@ -176,7 +179,6 @@ export default function App({ navigation }) {
               />
             )}
           </View>
-          {/* )} */}
 
         </View>
       </SearchContext.Provider>

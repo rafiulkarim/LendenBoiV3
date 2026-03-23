@@ -49,9 +49,10 @@ const colors = {
 
 const Welcome = ({ navigation }) => {
   const { singOut, logedInUserInfo } = React.useContext(AuthContext);
-  const { setGlobalSearching } = React.useContext(SearchContext); // ✅
+  // ✅ REPLACE WITH:
+  const { setGlobalSearching, drawerOpen, setDrawerOpen } = React.useContext(SearchContext);
 
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [contactList, setContactList] = useState([]);
@@ -543,7 +544,7 @@ const Welcome = ({ navigation }) => {
         {!isSearching && (
           <FAB
             icon="account-plus"
-            label="নতুন যোগ করুন"
+            label=""
             style={[styles.fab, { backgroundColor: colors.primary }]}
             onPress={() => {
               Keyboard.dismiss();

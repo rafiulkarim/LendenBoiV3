@@ -51,9 +51,10 @@ const PAGE_SIZE = 20;
 
 const ClientList = ({ route, navigation }) => {
   const { singOut, logedInUserInfo } = React.useContext(AuthContext);
-  const { setGlobalSearching } = React.useContext(SearchContext); // ✅
+  // ✅ REPLACE WITH:
+  const { setGlobalSearching, drawerOpen, setDrawerOpen } = React.useContext(SearchContext);
 
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // const [drawerOpen, setDrawerOpen] = useState(false);
 
   const [contactList, setContactList] = useState([]);
   const [loading, setLoading] = useState(false);
