@@ -203,6 +203,7 @@ const ExpenseList = ({ navigation }) => {
       tx.executeSql(query, [],
         (_, results) => {
           const rows = results.rows;
+          console.log(rows.raw())
           const expensesData = [];
           for (let i = 0; i < rows.length; i++) expensesData.push(rows.item(i));
           setExpenses(prev => reset ? expensesData : [...prev, ...expensesData]);
@@ -367,8 +368,8 @@ const ExpenseList = ({ navigation }) => {
 
     db.transaction((tx) => {
       tx.executeSql(
-        'INSERT INTO expenses (id, title, amount, shop_id, user_id, date, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [newExpense.id, newExpense.title, newExpense.amount, newExpense.shop_id, newExpense.user_id, newExpense.date, newExpense.status],
+        'INSERT INTO expenses (id, title, amount, shop_id, user_id, date, status, sync_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [newExpense.id, newExpense.title, newExpense.amount, newExpense.shop_id, newExpense.user_id, newExpense.date, newExpense.status, 'No'],
         () => {
           showSnackbar('খরচ সফলভাবে যোগ করা হয়েছে!', 'success');
           resetForm();
@@ -397,8 +398,8 @@ const ExpenseList = ({ navigation }) => {
     const formattedDate = formatStorageDate(editDate);
     db.transaction((tx) => {
       tx.executeSql(
-        'UPDATE expenses SET title = ?, amount = ?, date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [titleValue, parseFloat(amountValue), formattedDate, id],
+        'UPDATE expenses SET title = ?, amount = ?, date = ?, sync_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [titleValue, parseFloat(amountValue), formattedDate, "No", id],
         () => {
           showSnackbar('খরচ সফলভাবে আপডেট করা হয়েছে!', 'success');
           setEditFormVisible(false);

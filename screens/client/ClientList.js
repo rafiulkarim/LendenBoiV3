@@ -516,7 +516,7 @@ const ClientList = ({ route, navigation }) => {
         {/* FAB — hidden when searching */}
         {!isSearching && (
           <FAB
-            icon="plus"
+            icon="account-plus"
             style={[styles.fab, { backgroundColor: colors.primary }]}
             color="#fff"
             onPress={() => navigation.navigate('AddClient')}

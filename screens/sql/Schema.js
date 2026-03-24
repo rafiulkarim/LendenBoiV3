@@ -113,6 +113,7 @@ const Schema = () => {
               shop_id INTEGER(10),
               user_id INTEGER(10),
               status VARCHAR(20),
+              sync_status VARCHAR(10),
               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )`,
@@ -141,6 +142,7 @@ const Schema = () => {
               amount DECIMAL(10,2),
               date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               status VARCHAR(20),
+              sync_status VARCHAR(10),
               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )`,
@@ -352,6 +354,74 @@ const Schema = () => {
     })
   }
 
+  const updateSyncStatus = () => {
+    db.transaction(tx => {
+      tx.executeSql(
+        'UPDATE shortages SET sync_status = ?',
+        ["No"],
+        (tx, results) => {
+          if (results.rowsAffected > 0) {
+            console.log('shortages record updated');
+          } else {
+            console.log('No record found with id: 12345679407');
+          }
+        },
+        (tx, error) => {
+          console.error('Update error:', error.message);
+          return false;
+        }
+      );
+
+      tx.executeSql(
+        'UPDATE expenses SET sync_status = ?',
+        ["No"],
+        (tx, results) => {
+          if (results.rowsAffected > 0) {
+            console.log('expenses record updated');
+          } else {
+            console.log('No record found with id: 12345679407');
+          }
+        },
+        (tx, error) => {
+          console.error('Update error:', error.message);
+          return false;
+        }
+      );
+
+      tx.executeSql(
+        'UPDATE clients SET sync_status = ?',
+        ["No"],
+        (tx, results) => {
+          if (results.rowsAffected > 0) {
+            console.log('clients record updated');
+          } else {
+            console.log('No record found with id: 12345679407');
+          }
+        },
+        (tx, error) => {
+          console.error('Update error:', error.message);
+          return false;
+        }
+      );
+
+      tx.executeSql(
+        'UPDATE ledgers SET sync_status = ?',
+        ["No"],
+        (tx, results) => {
+          if (results.rowsAffected > 0) {
+            console.log('ledgers record updated');
+          } else {
+            console.log('No record found with id: 12345679407');
+          }
+        },
+        (tx, error) => {
+          console.error('Update error:', error.message);
+          return false;
+        }
+      );
+    })
+  }
+
 
   return (
     <>
@@ -367,6 +437,11 @@ const Schema = () => {
           onPress={() => allTableData()} mode='contained'
         >All table Data</Button>
       </View>
+
+      <Button style={{
+      }}
+        onPress={() => updateSyncStatus()} mode='contained'
+      >Update Sync Status</Button>
 
       <Button style={{
       }}

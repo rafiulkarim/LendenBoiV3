@@ -254,7 +254,7 @@ const Welcome = ({ navigation }) => {
   const quickActions = [
     { id: 1, url: 'ShortageList', icon: 'alert', label: 'শর্টেজ লিস্ট', color: colors.error, bgColor: '#FFEBEE' },
     { id: 2, url: 'Report', icon: 'chart-bar', label: 'রিপোর্ট', color: colors.info, bgColor: '#E3F2FD' },
-    { id: 3, url: 'BackupRestore', icon: 'backup-restore', label: 'ডাটা ব্যাকআপ', color: colors.primary, bgColor: colors.primaryLightest },
+    { id: 3, url: 'DataBackupForcely', icon: 'backup-restore', label: 'ডাটা ব্যাকআপ', color: colors.primary, bgColor: colors.primaryLightest },
     { id: 4, url: 'ExpenseList', icon: 'currency-bdt', label: 'খরচ', color: colors.warning, bgColor: '#FFF3E0' },
   ];
 

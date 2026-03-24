@@ -26,6 +26,7 @@ import AddExpense from './screens/expense/AddExpense';
 import PersistentAdBanner from './screens/components/PersistentAdBanner';
 import BottomMenu from './screens/components/BottomMenu';
 import { TestIds } from 'react-native-google-mobile-ads';
+import DataBackupForcely from './screens/backup/DataBackupForcely';
 
 // ✅ Added drawerOpen + setDrawerOpen to context
 export const SearchContext = React.createContext({
@@ -159,6 +160,7 @@ export default function App({ navigation }) {
                     <Stack.Screen name="GroupTagada" component={GroupTagada} options={{ headerShown: false }} />
                     <Stack.Screen name="ExpenseList" component={ExpenseList} options={{ headerShown: false }} />
                     <Stack.Screen name="AddExpense" component={AddExpense} options={{ headerShown: false }} />
+                    <Stack.Screen name="DataBackupForcely" component={DataBackupForcely} options={{ headerShown: false }} />
                   </>
                 )}
               </Stack.Navigator>
@@ -166,7 +168,7 @@ export default function App({ navigation }) {
           </View>
 
           <View style={styles.bottomBar}>
-            {showAdBanner && <PersistentAdBanner />}
+            <PersistentAdBanner />
             {showBottomMenu && (
               <BottomMenu
                 activeTab={activeTab}

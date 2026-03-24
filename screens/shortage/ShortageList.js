@@ -112,6 +112,7 @@ const ShortageList = ({ navigation }) => {
         [PAGE_SIZE, pageOffset],
         (_, results) => {
           const rows = results.rows;
+          console.log(results.rows.raw())
           const items = [];
           for (let i = 0; i < rows.length; i++) items.push(rows.item(i));
 
@@ -185,8 +186,8 @@ const ShortageList = ({ navigation }) => {
 
     db.transaction((tx) => {
       tx.executeSql(
-        'INSERT INTO shortages (id, title, status, shop_id, user_id) VALUES (?, ?, ?, ?, ?)',
-        [newShortage.id, newShortage.title, newShortage.status, logedInUserInfo?.shop[0]?.id, logedInUserInfo?.id],
+        'INSERT INTO shortages (id, title, status, shop_id, user_id, sync_status) VALUES (?, ?, ?, ?, ?, ?)',
+        [newShortage.id, newShortage.title, newShortage.status, logedInUserInfo?.shop[0]?.id, logedInUserInfo?.id, "No"],
         () => {
           showSnackbar('শর্টেজ সফলভাবে যোগ করা হয়েছে!', 'success');
           resetForm();
@@ -208,8 +209,8 @@ const ShortageList = ({ navigation }) => {
 
     db.transaction((tx) => {
       tx.executeSql(
-        'UPDATE shortages SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [titleValue, id],
+        'UPDATE shortages SET title = ?, updated_at = CURRENT_TIMESTAMP, sync_status = ? WHERE id = ?',
+        [titleValue, "No", id],
         () => {
           showSnackbar('শর্টেজ সফলভাবে আপডেট করা হয়েছে!', 'success');
           setEditFormVisible(false);
@@ -229,8 +230,8 @@ const ShortageList = ({ navigation }) => {
 
     db.transaction((tx) => {
       tx.executeSql(
-        'UPDATE shortages SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [newStatus, id],
+        'UPDATE shortages SET status = ?, updated_at = CURRENT_TIMESTAMP, sync_status = ? WHERE id = ?',
+        [newStatus, "No", id],
         () => showSnackbar(
           newStatus === 'Completed' ? 'শর্টেজ সম্পন্ন হিসেবে চিহ্নিত করা হয়েছে' : 'শর্টেজ পেন্ডিং হিসেবে চিহ্নিত করা হয়েছে',
           'success'
