@@ -28,6 +28,7 @@ import { openDatabase } from 'react-native-sqlite-storage';
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 import moment from 'moment';
 import Drawer from './components/Drawer';
+import InitBackgroundSync from './backup/InitBackgroundSync';
 
 const { width } = Dimensions.get('window');
 
@@ -48,7 +49,7 @@ const colors = {
 };
 
 const Welcome = ({ navigation }) => {
-  const { singOut, logedInUserInfo } = React.useContext(AuthContext);
+  const { singOut, logedInUserInfo, myToken } = React.useContext(AuthContext);
   // ✅ REPLACE WITH:
   const { setGlobalSearching, drawerOpen, setDrawerOpen } = React.useContext(SearchContext);
 
@@ -206,6 +207,10 @@ const Welcome = ({ navigation }) => {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, [searchQuery, contactList]);
+
+  useEffect(() => {
+    InitBackgroundSync(myToken);
+  }, []);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);

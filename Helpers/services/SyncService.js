@@ -7,7 +7,7 @@ const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 // Helper: run a SQL query (Promise-based)
 // ─────────────────────────────────────────────
 const runQuery = async (sql, params = []) => {
-  console.log(sql, params);
+  // console.log(sql, params);
 
   return new Promise((resolve, reject) => {
     db.transaction(tx => {
@@ -15,7 +15,7 @@ const runQuery = async (sql, params = []) => {
         sql,
         params,
         (_, result) => {
-          console.log('Query successful:', sql);
+          // console.log('Query successful:', sql);
           resolve(result);
         },
         (_, error) => {
@@ -83,7 +83,7 @@ const markAsSynced = async (table, ids, idField = 'id') => {
 // onProgress(step, percent, label) — called throughout
 // ─────────────────────────────────────────────
 export const syncData = async (token, onProgress) => {
-  console.log('comes')
+  // console.log('comes')
   const report = (percent, label) => {
     if (typeof onProgress === 'function') onProgress(percent, label);
   };
@@ -108,7 +108,7 @@ export const syncData = async (token, onProgress) => {
 
   const totalCount = clients.length + ledgers.length + shortages.length + expenses.length;
 
-  console.log('totalCount', totalCount)
+  // console.log('totalCount', totalCount)
 
   report(15, `${totalCount} টি রেকর্ড পাওয়া গেছে`);
 
@@ -176,7 +176,7 @@ export const syncData = async (token, onProgress) => {
     })),
   };
 
-  console.log('payload', payload)
+  // console.log('payload', payload)
 
   // ── Step 3: Send to server ───────────────────
   report(40, `সার্ভারে আপলোড হচ্ছে... (${totalCount} রেকর্ড)`);
@@ -188,7 +188,7 @@ export const syncData = async (token, onProgress) => {
     },
   });
 
-  console.log('Server response:', response.data);
+  // console.log('Server response:', response.data);
 
   if (response.data?.code != 201) {
     throw new Error(response.data?.message ?? 'Sync failed on server.');

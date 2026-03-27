@@ -27,6 +27,7 @@ import PersistentAdBanner from './screens/components/PersistentAdBanner';
 import BottomMenu from './screens/components/BottomMenu';
 import { TestIds } from 'react-native-google-mobile-ads';
 import DataBackupForcely from './screens/backup/DataBackupForcely';
+import InitBackgroundSync from './screens/backup/InitBackgroundSync';
 
 // ✅ Added drawerOpen + setDrawerOpen to context
 export const SearchContext = React.createContext({

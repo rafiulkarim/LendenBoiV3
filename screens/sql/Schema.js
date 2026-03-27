@@ -4,6 +4,7 @@ import { View } from 'react-native'
 import { Button } from 'react-native-paper'
 
 import { openDatabase } from 'react-native-sqlite-storage';
+import InitBackgroundSync from '../backup/InitBackgroundSync';
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 
 const Schema = () => {
@@ -422,6 +423,10 @@ const Schema = () => {
     })
   }
 
+  const testBackgroudBackup = () => {
+    InitBackgroundSync()
+  }
+
 
   return (
     <>
@@ -436,6 +441,11 @@ const Schema = () => {
         }}
           onPress={() => allTableData()} mode='contained'
         >All table Data</Button>
+
+        <Button style={{
+        }}
+          onPress={() => testBackgroudBackup()} mode='contained'
+        >Test Background backup</Button>
       </View>
 
       <Button style={{
