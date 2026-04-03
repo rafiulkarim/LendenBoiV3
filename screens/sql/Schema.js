@@ -21,7 +21,7 @@ const Schema = () => {
           );
           txn.executeSql(
             `CREATE TABLE IF NOT EXISTS clients (
-                  id VARCHAR(25),
+                  id VARCHAR(30),
                   name VARCHAR(100),
                   phone_no VARCHAR(20),
                   address VARCHAR(200),
@@ -52,7 +52,7 @@ const Schema = () => {
           );
           txn.executeSql(
             `CREATE TABLE IF NOT EXISTS ledgers (
-                  id VARCHAR(25),
+                  id VARCHAR(30),
                   client_id VARCHAR(100),
                   transaction_type VARCHAR(20),
                   transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -109,7 +109,7 @@ const Schema = () => {
           );
           txn.executeSql(
             `CREATE TABLE IF NOT EXISTS shortages (
-              id VARCHAR(25),
+              id VARCHAR(30),
               title VARCHAR(255),
               shop_id INTEGER(10),
               user_id INTEGER(10),
@@ -136,7 +136,7 @@ const Schema = () => {
           );
           txn.executeSql(
             `CREATE TABLE IF NOT EXISTS expenses (
-              id VARCHAR(25),
+              id VARCHAR(30),
               title VARCHAR(255),
               shop_id INTEGER(10),
               user_id INTEGER(10),

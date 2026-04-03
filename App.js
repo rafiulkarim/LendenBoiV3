@@ -28,6 +28,7 @@ import BottomMenu from './screens/components/BottomMenu';
 import { TestIds } from 'react-native-google-mobile-ads';
 import DataBackupForcely from './screens/backup/DataBackupForcely';
 import InitBackgroundSync from './screens/backup/InitBackgroundSync';
+import SyncPrevData from './screens/backup/SyncPrevData';
 
 // ✅ Added drawerOpen + setDrawerOpen to context
 export const SearchContext = React.createContext({
@@ -162,6 +163,7 @@ export default function App({ navigation }) {
                     <Stack.Screen name="ExpenseList" component={ExpenseList} options={{ headerShown: false }} />
                     <Stack.Screen name="AddExpense" component={AddExpense} options={{ headerShown: false }} />
                     <Stack.Screen name="DataBackupForcely" component={DataBackupForcely} options={{ headerShown: false }} />
+                    <Stack.Screen name="SyncPrevData" component={SyncPrevData} options={{ headerShown: false }} />
                   </>
                 )}
               </Stack.Navigator>

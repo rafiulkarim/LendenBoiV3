@@ -29,6 +29,7 @@ const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 import moment from 'moment';
 import Drawer from './components/Drawer';
 import InitBackgroundSync from './backup/InitBackgroundSync';
+import { CheckOnlineData } from './backup/CheckOnlineData';
 
 const { width } = Dimensions.get('window');
 
@@ -192,6 +193,11 @@ const Welcome = ({ navigation }) => {
   }, [contactList, findLastTransaction]);
 
   useEffect(() => {
+    InitBackgroundSync(myToken);
+    CheckOnlineData(myToken, navigation)
+  }, []);
+
+  useEffect(() => {
     fetchLast100Contacts(true);
   }, []);
 
@@ -207,10 +213,6 @@ const Welcome = ({ navigation }) => {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, [searchQuery, contactList]);
-
-  useEffect(() => {
-    InitBackgroundSync(myToken);
-  }, []);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
