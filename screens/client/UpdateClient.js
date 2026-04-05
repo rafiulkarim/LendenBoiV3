@@ -22,7 +22,8 @@ import {
   Portal,
   Dialog,
   Provider,
-  Snackbar
+  Snackbar,
+  SegmentedButtons
 } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -46,6 +47,8 @@ const colors = {
   warningLight: '#fff3cd',
   error: '#dc3545',
   errorLight: '#f8d7da',
+  info: '#17a2b8',
+  infoLight: '#d1ecf1',
   background: '#f8f9fa',
   surface: '#ffffff',
   textPrimary: '#1A535C',
@@ -71,21 +74,24 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
   const [formData, setFormData] = useState({
     name: '',
     phone_no: '',
-    address: ''
+    address: '',
+    type: 'Customer' // 'Customer' or 'Supplier'
   });
 
   // Validation errors state
   const [errors, setErrors] = useState({
     name: '',
     phone_no: '',
-    address: ''
+    address: '',
+    type: ''
   });
 
   // Touched fields for validation
   const [touched, setTouched] = useState({
     name: false,
     phone_no: false,
-    address: false
+    address: false,
+    type: false
   });
 
   const onDismissSnackbar = () => setSnackbarVisible(false);
@@ -131,19 +137,28 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
     return '';
   };
 
+  const validateClientType = (type) => {
+    if (!type || (type !== 'Customer' && type !== 'Supplier')) {
+      return 'ক্লায়েন্ট টাইপ নির্বাচন করুন';
+    }
+    return '';
+  };
+
   // Validate all fields
   const validateForm = () => {
     const nameError = validateName(formData.name);
-    const phoneError = validatePhone(formData.phone_no);
+    // const phoneError = validatePhone(formData.phone_no);
     const addressError = validateAddress(formData.address);
+    const clientTypeError = validateClientType(formData.type);
 
     setErrors({
       name: nameError,
-      phone_no: phoneError,
-      address: addressError
+      // phone_no: phoneError,
+      address: addressError,
+      type: clientTypeError
     });
 
-    return !nameError && !phoneError && !addressError;
+    return !nameError && !addressError && !clientTypeError;
   };
 
   // Handle input change with real-time validation
@@ -156,11 +171,14 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
       case 'name':
         error = validateName(value);
         break;
-      case 'phone_no':
-        error = validatePhone(value);
-        break;
+      // case 'phone_no':
+      //   error = validatePhone(value);
+      //   break;
       case 'address':
         error = validateAddress(value);
+        break;
+      case 'type':
+        error = validateClientType(value);
         break;
     }
 
@@ -176,11 +194,14 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
       case 'name':
         error = validateName(formData.name);
         break;
-      case 'phone_no':
-        error = validatePhone(formData.phone_no);
-        break;
+      // case 'phone_no':
+      //   error = validatePhone(formData.phone_no);
+      //   break;
       case 'address':
         error = validateAddress(formData.address);
+        break;
+      case 'type':
+        error = validateClientType(formData.type);
         break;
     }
 
@@ -196,11 +217,13 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
         (tx, results) => {
           if (results.rows.length > 0) {
             const client = results.rows.item(0);
+            console.log('client', client)
             setClientData(client);
             setFormData({
               name: client.name || '',
               phone_no: client.phone_no || '',
-              address: client.address || ''
+              address: client.address || '',
+              type: client.type
             });
             setLoading(false);
           } else {
@@ -260,13 +283,24 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
     return `অগ্রিম: ${formatCurrency(clientData.amount)}`;
   };
 
+  const getClientTypeLabel = () => {
+    if (!clientData) return '';
+    return clientData.type === 'Customer' ? 'ক্রেতা' : 'সরবরাহকারী';
+  };
+
+  const getClientTypeIcon = () => {
+    if (!clientData) return 'account';
+    return clientData.type === 'Customer' ? 'account-group' : 'truck-delivery';
+  };
+
   const handleUpdate = () => {
     dismissKeyboard();
 
     setTouched({
       name: true,
       phone_no: true,
-      address: true
+      address: true,
+      type: true
     });
 
     if (!validateForm()) {
@@ -278,8 +312,8 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
 
     db.transaction(tx => {
       tx.executeSql(
-        'UPDATE clients SET name = ?, phone_no = ?, address = ?, updated_at = ?, sync_status = ? WHERE id = ?',
-        [formData.name.trim(), formData.phone_no.trim(), formData.address.trim(), moment().format('YYYY-MM-DD HH:mm:ss'), "No", clientId],
+        'UPDATE clients SET name = ?, phone_no = ?, address = ?, type = ?, updated_at = ?, sync_status = ? WHERE id = ?',
+        [formData.name.trim(), formData.phone_no.trim(), formData.address.trim(), formData.type, moment().format('YYYY-MM-DD HH:mm:ss'), "No", clientId],
         (tx, results) => {
           setSaving(false);
           if (results.rowsAffected > 0) {
@@ -290,23 +324,7 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
                 clientId: clientId
               })
             }, 2000)
-            // Alert.alert(
-            //   'সফল',
-            //   'ক্লায়েন্টের তথ্য আপডেট করা হয়েছে',
-            //   [
-            //     {
-            //       text: 'ঠিক আছে',
-            //       onPress: () => {
-            //         setEditDialogVisible(false);
-            //         fetchClientData(); // Refresh data
-            //         // Reset touched states
-            //         setTouched({ name: false, phone_no: false, address: false });
-            //       }
-            //     }
-            //   ]
-            // );
           } else {
-            // Alert.alert('ত্রুটি', 'আপডেট ব্যর্থ হয়েছে');
             setEditDialogVisible(false);
             showSnackbar("আপডেট ব্যর্থ হয়েছে", "error")
           }
@@ -314,7 +332,6 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
         (error) => {
           setSaving(false);
           console.error('Error updating client:', error);
-          // Alert.alert('ত্রুটি', 'ডাটাবেস আপডেট করতে সমস্যা হয়েছে');
           setEditDialogVisible(false);
           showSnackbar("ডাটাবেস আপডেট করতে সমস্যা হয়েছে", "error")
         }
@@ -327,11 +344,12 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
     setFormData({
       name: clientData.name || '',
       phone_no: clientData.phone_no || '',
-      address: clientData.address || ''
+      address: clientData.address || '',
+      type: clientData.type || 'Customer'
     });
     // Reset errors and touched
-    setErrors({ name: '', phone_no: '', address: '' });
-    setTouched({ name: false, phone_no: false, address: false });
+    setErrors({ name: '', phone_no: '', address: '', type: '' });
+    setTouched({ name: false, phone_no: false, address: false, type: false });
     setEditDialogVisible(true);
   };
 
@@ -395,6 +413,10 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
                     />
                     <View style={styles.nameSection}>
                       <Text style={styles.clientName}>{clientData.name}</Text>
+                      {/* <View style={styles.clientTypeBadge}>
+                        <Icon name={getClientTypeIcon()} size={16} color={colors.primary} />
+                        <Text style={styles.clientTypeText}>{getClientTypeLabel()}</Text>
+                      </View> */}
                       <Text style={[
                         styles.balanceText,
                         { color: getBalanceColor() }
@@ -463,19 +485,6 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
                   </View>
                 </Card.Content>
               </Card>
-
-              {/* Transaction History Placeholder */}
-              {/* <Card style={styles.historyCard}>
-                <Card.Content>
-                  <View style={styles.historyHeader}>
-                    <Icon name="history" size={24} color={colors.primary} />
-                    <Text style={styles.historyTitle}>লেনদেনের ইতিহাস</Text>
-                  </View>
-                  <Text style={styles.placeholderText}>
-                    লেনদেনের ইতিহাস শীঘ্রই যোগ করা হবে
-                  </Text>
-                </Card.Content>
-              </Card> */}
             </ScrollView>
           ) : (
             <View style={styles.errorContainer}>
@@ -507,6 +516,39 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
               <Dialog.ScrollArea style={styles.dialogScrollArea}>
                 <ScrollView showsVerticalScrollIndicator={false}>
                   <View style={styles.dialogContent}>
+                    {/* Client Type Selection */}
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.sectionLabel}>ক্লায়েন্ট টাইপ *</Text>
+                      <SegmentedButtons
+                        value={formData.type}
+                        onValueChange={(value) => handleInputChange('type', value)}
+                        buttons={[
+                          {
+                            value: 'Customer',
+                            label: 'ক্রেতা',
+                            icon: 'account-group',
+                            style: formData.type === 'Customer' ? styles.selectedSegment : styles.unselectedSegment,
+                            labelStyle: formData.type === 'Customer' ? styles.selectedSegmentLabel : styles.unselectedSegmentLabel,
+                          },
+                          {
+                            value: 'Supplier',
+                            label: 'সরবরাহকারী',
+                            icon: 'truck-delivery',
+                            style: formData.type === 'Supplier' ? styles.selectedSegment : styles.unselectedSegment,
+                            labelStyle: formData.type === 'Supplier' ? styles.selectedSegmentLabel : styles.unselectedSegmentLabel,
+                          },
+                        ]}
+                        style={styles.segmentedButton}
+                      />
+                      <HelperText
+                        type="error"
+                        visible={!!errors.type && touched.type}
+                        style={styles.helperText}
+                      >
+                        {errors.type}
+                      </HelperText>
+                    </View>
+
                     {/* Name Field */}
                     <View style={styles.inputContainer}>
                       <TextInput
@@ -545,7 +587,7 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
                     {/* Phone Field */}
                     <View style={styles.inputContainer}>
                       <TextInput
-                        label="ফোন নম্বর *"
+                        label="ফোন নম্বর"
                         value={formData.phone_no}
                         onChangeText={(text) => handleInputChange('phone_no', text)}
                         onBlur={() => handleBlur('phone_no')}
@@ -638,8 +680,8 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
                   style={styles.saveButton}
                   labelStyle={styles.saveButtonLabel}
                   loading={saving}
-                  disabled={saving || !formData.name || !formData.phone_no ||
-                    !!errors.name || !!errors.phone_no || !!errors.address}
+                  // disabled={saving || !formData.name || !formData.phone_no ||
+                  //   !!errors.name || !!errors.phone_no || !!errors.address || !!errors.type}
                   icon="content-save"
                 >
                   {saving ? 'সেভ হচ্ছে...' : 'সংরক্ষণ'}
@@ -728,6 +770,17 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: 4,
   },
+  clientTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  clientTypeText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
   balanceText: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -771,35 +824,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderRadius: 8,
   },
-  // History Card
-  historyCard: {
-    borderRadius: 16,
-    elevation: 2,
-    backgroundColor: colors.surface,
-  },
-  historyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  historyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-    marginLeft: 12,
-  },
-  placeholderText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
   // Dialog Styles
   dialog: {
     backgroundColor: colors.surface,
     borderRadius: 20,
-    maxHeight: '80%',
+    maxHeight: '85%',
   },
   dialogTitle: {
     color: colors.textPrimary,
@@ -836,6 +865,31 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'right',
     marginRight: 8,
+  },
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  segmentedButton: {
+    marginBottom: 8,
+  },
+  selectedSegment: {
+    backgroundColor: colors.primaryLightest,
+    borderColor: colors.primary,
+  },
+  unselectedSegment: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  selectedSegmentLabel: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  unselectedSegmentLabel: {
+    color: colors.textSecondary,
   },
   cancelButton: {
     marginRight: 12,

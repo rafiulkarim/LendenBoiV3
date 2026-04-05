@@ -100,19 +100,19 @@ const ClientList = ({ route, navigation }) => {
     else setLoading(true);
 
     const offset = (pageNum - 1) * PAGE_SIZE;
-    let query = 'SELECT id, name, phone_no, amount, type, status, amount_type, updated_at FROM clients';
-    let params = [];
-    let countQuery = 'SELECT COUNT(*) as total FROM clients';
-    let countParams = [];
+    let query = 'SELECT id, name, phone_no, amount, type, status, amount_type, updated_at FROM clients WHERE shop_id = ?';
+    let params = [logedInUserInfo.shop[0].id];
+    let countQuery = 'SELECT COUNT(*) as total FROM clients WHERE shop_id = ?';
+    let countParams = [logedInUserInfo.shop[0].id];
 
     const trimmedSearch = searchTerm.trim();
     if (trimmedSearch) {
-      const searchCondition = ' WHERE name LIKE ? OR phone_no LIKE ?';
+      const searchCondition = ' AND (name LIKE ? OR phone_no LIKE ?)';
       query += searchCondition;
       countQuery += searchCondition;
       const searchParam = `%${trimmedSearch}%`;
-      params = [searchParam, searchParam];
-      countParams = [searchParam, searchParam];
+      params = [logedInUserInfo.shop[0].id, searchParam, searchParam];
+      countParams = [logedInUserInfo.shop[0].id, searchParam, searchParam];
     }
 
     query += ' ORDER BY updated_at DESC LIMIT ? OFFSET ?';
@@ -179,8 +179,8 @@ const ClientList = ({ route, navigation }) => {
               COUNT(id) as total_contact,
               SUM(CASE WHEN type='Customer' AND amount_type='Due' THEN amount ELSE 0 END) AS clientsDue,
               SUM(CASE WHEN (type='Supplier' AND amount_type='Due') THEN amount ELSE 0 END) AS supplierDue
-            FROM clients`,
-            [],
+            FROM clients WHERE shop_id = ?`,
+            [logedInUserInfo.shop[0].id],
             (tx, results) => {
               if (!isMounted.current) return;
               const row = results.rows.item(0);
@@ -338,9 +338,9 @@ const ClientList = ({ route, navigation }) => {
           <View style={styles.dueContainer}>
             <View style={styles.typeIndicatorContainer}>
               <View style={[styles.typeIndicator, { backgroundColor: isSupplier ? indicatorColor : '' }]} />
-              <Text style={[styles.typeText, { color: typeColor }]}>
+              {/* <Text style={[styles.typeText, { color: typeColor }]}>
                 {isSupplier ? 'সাপ্লায়ার' : ''}
-              </Text>
+              </Text> */}
             </View>
             <Text style={[styles.dueAmount, { color: amountColor }]}>
               ৳{(Number(item.due) || 0).toLocaleString('bn-BD')}

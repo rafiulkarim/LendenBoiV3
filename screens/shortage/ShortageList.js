@@ -94,7 +94,8 @@ const ShortageList = ({ navigation }) => {
     setLoading(true);
     db.transaction((tx) => {
       tx.executeSql(
-        'SELECT COUNT(*) as cnt FROM shortages', [],
+        'SELECT COUNT(*) as cnt FROM shortages WHERE shop_id = ?',
+        [logedInUserInfo.shop[0].id],
         (_, result) => {
           const cnt = result.rows.item(0).cnt;
           setTotalCount(cnt);
@@ -108,8 +109,8 @@ const ShortageList = ({ navigation }) => {
   const fetchPage = (pageOffset, reset = false) => {
     db.transaction((tx) => {
       tx.executeSql(
-        'SELECT * FROM shortages ORDER BY created_at DESC LIMIT ? OFFSET ?',
-        [PAGE_SIZE, pageOffset],
+        'SELECT * FROM shortages WHERE shop_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+        [logedInUserInfo.shop[0].id, PAGE_SIZE, pageOffset],
         (_, results) => {
           const rows = results.rows;
           console.log(results.rows.raw())

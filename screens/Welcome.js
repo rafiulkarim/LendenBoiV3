@@ -107,8 +107,8 @@ const Welcome = ({ navigation }) => {
 
     db.transaction(tx => {
       tx.executeSql(
-        'SELECT * FROM clients ORDER BY updated_at DESC LIMIT 100',
-        [],
+        'SELECT * FROM clients WHERE shop_id = ? ORDER BY updated_at DESC LIMIT 100',
+        [logedInUserInfo.shop[0].id],
         (tx, results) => {
           const rows = results.rows.raw();
           const mappedData = rows.map(item => {
@@ -135,8 +135,8 @@ const Welcome = ({ navigation }) => {
           COUNT(id) as total_contact,
           SUM(CASE WHEN type='Customer' AND amount_type='Due' THEN amount ELSE 0 END) AS clientsDue,
           SUM(CASE WHEN (type='Supplier' AND amount_type='Due') THEN amount ELSE 0 END) AS supplierDue
-        FROM clients`,
-        [],
+        FROM clients WHERE shop_id = ?`,
+        [logedInUserInfo.shop[0].id],
         (tx, results) => {
           const row = results.rows.item(0);
           setTotalClientDue(row.clientsDue || 0);
@@ -162,13 +162,13 @@ const Welcome = ({ navigation }) => {
         return;
       }
 
-      let sqlQuery = 'SELECT * FROM clients WHERE name LIKE ? OR phone_no LIKE ? ORDER BY updated_at DESC LIMIT 100';
+      let sqlQuery = 'SELECT * FROM clients WHERE (name LIKE ? OR phone_no LIKE ?) AND shop_id = ? ORDER BY updated_at DESC LIMIT 100';
       const searchParam = `%${searchText}%`;
 
       db.transaction(tx => {
         tx.executeSql(
           sqlQuery,
-          [searchParam, searchParam],
+          [searchParam, searchParam, logedInUserInfo.shop[0].id],
           (tx, results) => {
             const data = results.rows.raw().map(item => ({
               id: item.id,
@@ -310,6 +310,12 @@ const Welcome = ({ navigation }) => {
         </View>
 
         <View style={styles.dueContainer}>
+          <View style={styles.typeIndicatorContainer}>
+            <View style={[styles.typeIndicator, { backgroundColor: item.type == 'Supplier' ? colors.primaryLight : '' }]} />
+            {/* <Text style={[styles.typeText, { color: typeColor }]}>
+                          {isSupplier ? 'সাপ্লায়ার' : ''}
+                        </Text> */}
+          </View>
           <Text style={[
             styles.dueAmount,
             item.due == 0
@@ -827,6 +833,21 @@ const styles = StyleSheet.create({
     // ✅ Sits above BottomMenu (~60) + Ad (~60) + margin
     bottom: Platform.OS === 'ios' ? 120 : 0,
     zIndex: 1000,
+  },
+  typeIndicatorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  typeIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 4,
+  },
+  typeText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
 });
 

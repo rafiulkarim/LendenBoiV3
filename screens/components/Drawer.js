@@ -44,7 +44,7 @@ const Drawer = ({
 
   const drawerItems = [
     {
-      id: 'dashboard',
+      id: 'Welcome',
       label: 'ড্যাশবোর্ড',
       icon: 'view-dashboard',
       onPress: () => {
@@ -53,8 +53,8 @@ const Drawer = ({
       }
     },
     {
-      id: 'contacts',
-      label: 'কন্টাক্টস',
+      id: 'Clients',
+      label: 'কাস্টমার ও সাপ্লায়ার',
       icon: 'account-multiple',
       onPress: () => {
         onClose();
@@ -62,7 +62,7 @@ const Drawer = ({
       }
     },
     {
-      id: 'reports',
+      id: 'Reports',
       label: 'রিপোর্টস',
       icon: 'chart-bar',
       onPress: () => {
@@ -70,31 +70,40 @@ const Drawer = ({
         navigation.navigate('Report');
       }
     },
-    {
-      id: 'transactions',
-      label: 'লেনদেন',
-      icon: 'cash-multiple',
-      onPress: () => {
-        onClose();
-        navigation.navigate('Transactions');
-      }
-    },
-    {
-      id: 'settings',
-      label: 'সেটিংস',
-      icon: 'cog',
-      onPress: () => {
-        onClose();
-        navigation.navigate('Settings');
-      }
-    },
+    // {
+    //   id: 'transactions',
+    //   label: 'লেনদেন',
+    //   icon: 'cash-multiple',
+    //   onPress: () => {
+    //     onClose();
+    //     navigation.navigate('Transactions');
+    //   }
+    // },
+    // {
+    //   id: 'settings',
+    //   label: 'সেটিংস',
+    //   icon: 'cog',
+    //   onPress: () => {
+    //     onClose();
+    //     navigation.navigate('Settings');
+    //   }
+    // },
     {
       id: 'backup',
       label: 'ব্যাকআপ',
       icon: 'backup-restore',
       onPress: () => {
         onClose();
-        navigation.navigate('Backup');
+        navigation.navigate('DataBackupForcely');
+      }
+    },
+    {
+      id: 'onlineDataSync',
+      label: 'অনলাইন ডেটা সিঙ্ক',
+      icon: 'sync',
+      onPress: () => {
+        onClose();
+        navigation.navigate('SyncPrevData');
       }
     },
     {

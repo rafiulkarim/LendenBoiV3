@@ -6,8 +6,8 @@ import {
   Text,
   Animated,
   Easing,
-  Alert,
   Dimensions,
+  BackHandler
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -15,23 +15,79 @@ import axios from 'axios';
 import { BASE_URL } from '../../env';
 import AuthContext from '../../context/AuthContext';
 import { openDatabase } from 'react-native-sqlite-storage';
+import InitBackgroundSync from './InitBackgroundSync';
+import { syncData } from '../../Helpers/services/SyncService';
+import NetInfo from '@react-native-community/netinfo';
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 
 const { width } = Dimensions.get('window');
 
-const SyncPrevData = () => {
-  const { myToken } = useContext(AuthContext);
+const SyncPrevData = ({ navigation }) => {
+  const { myToken, logedInUserInfo } = useContext(AuthContext);
+  // console.log(logedInUserInfo)
   const [syncPercentage, setSyncPercentage] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('Ready to sync');
+  const [statusMessage, setStatusMessage] = useState('সিঙ্কের জন্য প্রস্তুত');
   const [syncCompleted, setSyncCompleted] = useState(false);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarType, setSnackbarType] = useState('success');
+  const [isConnected, setIsConnected] = useState(true);
+  const [connectionType, setConnectionType] = useState(null);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
+  // Define spin interpolation
+  const spin = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  // Check internet connection status
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsConnected(state.isConnected);
+      setConnectionType(state.type);
+
+      if (!state.isConnected) {
+        showSnackbar('ইন্টারনেট সংযোগ বিচ্ছিন্ন হয়েছে!', 'error');
+        setStatusMessage('ইন্টারনেট সংযোগ নেই');
+      } else {
+        if (state.type === 'wifi') {
+          showSnackbar('ওয়াইফাই সংযোগ সক্রিয়', 'success');
+        } else if (state.type === 'cellular') {
+          showSnackbar('মোবাইল ডাটা সংযোগ সক্রিয়', 'success');
+        }
+        setStatusMessage('সিঙ্কের জন্য প্রস্তুত');
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const showSnackbar = (message, type = 'info') => {
+    setSnackbarMessage(message);
+    setSnackbarType(type);
+    setSnackbarVisible(true);
+    setTimeout(() => setSnackbarVisible(false), 3000);
+  };
+
+  const backAction = () => {
+    navigation.replace('Welcome');
+  }
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction,
+    );
+    return () => backHandler.remove();
+  }, []);
+
   // Pulse effect for the button when idle
   useEffect(() => {
-    if (!isSyncing && !syncCompleted) {
+    if (!isSyncing && !syncCompleted && isConnected) {
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -51,7 +107,7 @@ const SyncPrevData = () => {
     } else {
       pulseAnim.setValue(1);
     }
-  }, [isSyncing, syncCompleted, pulseAnim]);
+  }, [isSyncing, syncCompleted, pulseAnim, isConnected]);
 
   // Rotate effect when syncing
   useEffect(() => {
@@ -69,24 +125,71 @@ const SyncPrevData = () => {
     }
   }, [isSyncing, rotateAnim]);
 
-  const spin = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
+  // Function to delete all data from tables
+  const deleteAllDataFromTables = () => {
+    return new Promise((resolve, reject) => {
+      const tables = ['clients', 'ledgers', 'shortages', 'expenses'];
 
-  // const insertDataToDatabase = async (data, tableName, fields) => {
-  //   let insertedCount = 0;
-  //   for (const item of data) {
-  //     const placeholders = fields.map(() => '?').join(',');
-  //     const values = fields.map(field => item[field]);
-  //     await runQuery(
-  //       `INSERT OR REPLACE INTO ${tableName} (${fields.join(',')}) VALUES (${placeholders})`,
-  //       values
-  //     );
-  //     insertedCount++;
-  //   }
-  //   return insertedCount;
-  // };
+      db.transaction(tx => {
+        let deletedCount = 0;
+
+        tables.forEach((table) => {
+          tx.executeSql(
+            `DELETE FROM ${table} WHERE shop_id = ?`,
+            [logedInUserInfo.shop[0].id],
+            (_, result) => {
+              deletedCount++;
+              console.log(`Deleted all data from ${table}, rows affected: ${result.rowsAffected}`);
+
+              if (deletedCount === tables.length) {
+                console.log('Successfully deleted all data from all tables');
+                resolve(true);
+              }
+            },
+            (_, error) => {
+              console.error(`Error deleting data from ${table}:`, error);
+              reject(error);
+              return false;
+            }
+          );
+        });
+      }, (error) => {
+        console.error('Transaction error while deleting data:', error);
+        reject(error);
+      });
+    });
+  };
+
+  // Function to verify tables are empty
+  const verifyTablesEmpty = () => {
+    return new Promise((resolve, reject) => {
+      const tables = ['clients', 'ledgers', 'shortages', 'expenses'];
+      let checkCount = 0;
+
+      db.transaction(tx => {
+        tables.forEach((table) => {
+          tx.executeSql(
+            `SELECT COUNT(*) as count FROM ${table}`,
+            [],
+            (_, result) => {
+              const count = result.rows.item(0).count;
+              console.log(`${table} table has ${count} records after deletion`);
+              checkCount++;
+
+              if (checkCount === tables.length) {
+                resolve(true);
+              }
+            },
+            (_, error) => {
+              console.error(`Error verifying ${table}:`, error);
+              reject(error);
+              return false;
+            }
+          );
+        });
+      });
+    });
+  };
 
   const insertDataToDatabase = (data, tableName, fields) => {
     return new Promise((resolve, reject) => {
@@ -108,7 +211,6 @@ const SyncPrevData = () => {
               values,
               (_, result) => {
                 insertedCount++;
-                // Check if this is the last item
                 if (insertedCount === data.length) {
                   console.log(`Successfully inserted/updated ${insertedCount} records in ${tableName}`);
                   resolve(insertedCount);
@@ -117,7 +219,7 @@ const SyncPrevData = () => {
               (_, error) => {
                 console.error(`Error inserting data into ${tableName}:`, error);
                 reject(error);
-                return false; // Rollback transaction
+                return false;
               }
             );
           }
@@ -126,7 +228,6 @@ const SyncPrevData = () => {
           reject(error);
         }
       }, (error) => {
-        // Transaction error callback
         console.error(`Transaction failed for ${tableName}:`, error);
         reject(error);
       });
@@ -136,45 +237,64 @@ const SyncPrevData = () => {
   const startSync = async () => {
     if (isSyncing) return;
 
+    if (!isConnected) {
+      showSnackbar('ইন্টারনেট সংযোগ নেই। অনুগ্রহ করে আপনার ইন্টারনেট সংযোগ চেক করুন', 'error');
+      return;
+    }
+
     setIsSyncing(true);
     setSyncCompleted(false);
     setSyncPercentage(0);
-    setStatusMessage('Connecting to server...');
+    setStatusMessage('সার্ভারের সাথে সংযোগ হচ্ছে...');
 
     try {
-      // Step 1: Initial connection (5%)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setSyncPercentage(3);
+      setStatusMessage('প্রমাণীকরণ করা হচ্ছে...');
+
       await new Promise(resolve => setTimeout(resolve, 500));
       setSyncPercentage(5);
-      setStatusMessage('Authenticating...');
+      setStatusMessage('সার্ভার থেকে তথ্য চেক করা হচ্ছে...');
 
-      // Step 2: Fetch total data info (10%)
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await syncData(myToken, '');
+
       setSyncPercentage(10);
-      setStatusMessage('Checking remote data...');
+      setStatusMessage('বিদ্যমান ডাটা মুছে ফেলা হচ্ছে...');
 
-      // Step 3: Get total pages
+      // Delete all existing data from tables
+      await deleteAllDataFromTables();
+
+      // Verify tables are empty
+      await verifyTablesEmpty();
+      showSnackbar('পুরাতন ডাটা সফলভাবে মুছে ফেলা হয়েছে', 'success');
+
       const response = await axios.get(`${BASE_URL}/data-check`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${myToken}`,
         },
+        timeout: 10000,
       });
 
       if (response && response?.data?.code === 200) {
         const totalPage = Math.ceil(response?.data?.data?.count / 5);
-        console.log('totalPage', totalPage);
+        console.log('মোট পৃষ্ঠা:', totalPage);
 
         setSyncPercentage(15);
-        setStatusMessage(`Found ${totalPage} pages of data. Starting sync...`);
+        setStatusMessage(`মোট ${totalPage} পৃষ্ঠা পাওয়া গেছে। নতুন ডাটা সিঙ্ক শুরু হচ্ছে...`);
 
-        // Calculate percentage range for the loop (15% to 90%)
         const startPercentage = 15;
         const endPercentage = 90;
         const percentageRange = endPercentage - startPercentage;
 
-        // Loop through all pages
         for (let i = 1; i <= totalPage; i++) {
-          setStatusMessage(`Fetching page ${i} of ${totalPage}...`);
+          // Check internet connection before each page
+          const netInfo = await NetInfo.fetch();
+          if (!netInfo.isConnected) {
+            throw new Error('ইন্টারনেট সংযোগ বিচ্ছিন্ন হয়েছে');
+          }
+
+          setStatusMessage(`${i} নং পৃষ্ঠা থেকে ${totalPage} পৃষ্ঠার মধ্যে ডাটা আনা হচ্ছে...`);
 
           const insertDataResponse = await axios.post(`${BASE_URL}/insert-data`, {
             page: i,
@@ -184,90 +304,144 @@ const SyncPrevData = () => {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${myToken}`,
             },
+            timeout: 10000,
           });
 
           if (insertDataResponse?.data?.data) {
-            console.log(insertDataResponse?.data?.data?.users?.data)
-            console.log(insertDataResponse?.data?.data?.ledgers?.data)
-            console.log(insertDataResponse?.data?.data?.shortageLists?.data)
-            console.log(insertDataResponse?.data?.data?.expenses?.data)
-            console.log('------------------------------')
-
             const { users, ledgers, shortageLists, expenses } = insertDataResponse.data.data;
 
-            // Insert users
             if (users?.data?.length > 0) {
-              setStatusMessage(`Saving ${users.data.length} users from page ${i}...`);
+              setStatusMessage(`${i} নং পৃষ্ঠা থেকে ${users.data.length} জন ক্লায়েন্ট সংরক্ষণ করা হচ্ছে...`);
+              const usersData = users.data.map(user => ({
+                // ...user,
+                id: user.slug,
+                name: user.name,
+                phone_no: user.phone_no,
+                address: user.address,
+                amount: user.amount,
+                amount_type: user.amount_type,
+                status: user.status,
+                type: user.type,
+                shop_id: user.shop_id,
+                sync_status: user.sync_status,
+                created_at: user.created_at,
+                updated_at: user.updated_at,
+              }));
+
+              console.log('usersData', usersData)
               await insertDataToDatabase(
-                users.data,
+                usersData,
                 'clients',
                 ['id', 'name', 'phone_no', 'address', 'amount', 'amount_type', 'status', 'type', 'shop_id', 'sync_status', 'created_at', 'updated_at']
               );
             }
 
-            // Insert ledgers
             if (ledgers?.data?.length > 0) {
-              setStatusMessage(`Saving ${ledgers.data.length} ledgers from page ${i}...`);
+              setStatusMessage(`${i} নং পৃষ্ঠা থেকে ${ledgers.data.length} টি লেজার সংরক্ষণ করা হচ্ছে...`);
+              const ledgersData = ledgers.data.map(ledger => ({
+                // ...ledger,
+                id: ledger.slug,
+                shop_id: ledger.shop_id,
+                client_id: ledger.client_id,
+                transaction_type: ledger.transaction_type,
+                transaction_date: ledger.transaction_date,
+                amount: ledger.amount,
+                comments: ledger.comments,
+                entry_by: ledger.entry_by,
+                sync_status: ledger.sync_status,
+                created_at: ledger.created_at,
+                updated_at: ledger.updated_at,
+              }));
               await insertDataToDatabase(
-                ledgers.data,
+                ledgersData,
                 'ledgers',
                 ['id', 'shop_id', 'client_id', 'transaction_type', 'transaction_date', 'amount', 'comments', 'entry_by', 'sync_status', 'created_at', 'updated_at']
               );
             }
 
-            // Insert shortageLists
             if (shortageLists?.data?.length > 0) {
-              setStatusMessage(`Saving ${shortageLists.data.length} shortage lists from page ${i}...`);
+              setStatusMessage(`${i} নং পৃষ্ঠা থেকে ${shortageLists.data.length} টি ঘাটতি তালিকা সংরক্ষণ করা হচ্ছে...`);
+              const shortageListsData = shortageLists.data.map(shortageList => ({
+                // ...shortageList,
+                id: shortageList.slug,
+                title: shortageList.title,
+                shop_id: shortageList.shop_id,
+                user_id: shortageList.user_id,
+                status: shortageList.status,
+                sync_status: shortageList.sync_status,
+                created_at: shortageList.created_at,
+                updated_at: shortageList.updated_at,
+              }));
               await insertDataToDatabase(
-                shortageLists.data,
+                shortageListsData,
                 'shortages',
                 ['id', 'title', 'shop_id', 'user_id', 'status', 'sync_status', 'created_at', 'updated_at']
               );
             }
 
-            // Insert expenses
             if (expenses?.data?.length > 0) {
-              setStatusMessage(`Saving ${expenses.data.length} expenses from page ${i}...`);
+              setStatusMessage(`${i} নং পৃষ্ঠা থেকে ${expenses.data.length} টি খরচ সংরক্ষণ করা হচ্ছে...`);
+              const expensesData = expenses.data.map(expense => ({
+                // ...expense,
+                id: expense.slug,
+                title: expense.title,
+                shop_id: expense.shop_id,
+                user_id: expense.user_id,
+                amount: expense.amount,
+                date: expense.date,
+                status: expense.status,
+                sync_status: expense.sync_status,
+                created_at: expense.created_at,
+                updated_at: expense.updated_at,
+              }));
               await insertDataToDatabase(
-                expenses.data,
+                expensesData,
                 'expenses',
                 ['id', 'title', 'shop_id', 'user_id', 'amount', 'date', 'status', 'sync_status', 'created_at', 'updated_at']
               );
             }
           }
 
-          // Update percentage based on progress through pages
           const progress = (i / totalPage);
           const currentPercentage = startPercentage + (percentageRange * progress);
           setSyncPercentage(Math.floor(currentPercentage));
 
-          console.log(`Page ${i}/${totalPage} completed. Progress: ${Math.floor(currentPercentage)}%`);
+          console.log(`পৃষ্ঠা ${i}/${totalPage} সম্পন্ন হয়েছে। অগ্রগতি: ${Math.floor(currentPercentage)}%`);
         }
 
-        // Step 4: Final processing (90% to 100%)
         setSyncPercentage(95);
-        setStatusMessage('Finalizing sync...');
+        setStatusMessage('সিঙ্ক চূড়ান্ত করা হচ্ছে...');
         await new Promise(resolve => setTimeout(resolve, 500));
 
         setSyncPercentage(98);
-        setStatusMessage('Verifying data integrity...');
+        setStatusMessage('তথ্যের অখণ্ডতা যাচাই করা হচ্ছে...');
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Step 5: Complete
         setSyncPercentage(100);
-        setStatusMessage('Sync Complete! All data has been synchronized successfully.');
+        setStatusMessage('সিঙ্ক সম্পূর্ণ! সমস্ত ডাটা সফলভাবে সিঙ্ক হয়েছে।');
         setSyncCompleted(true);
+        showSnackbar('সিঙ্ক সফলভাবে সম্পন্ন হয়েছে! সমস্ত ডাটা আপডেট করা হয়েছে', 'success');
       } else {
-        throw new Error('Invalid response from server');
+        throw new Error('সার্ভার থেকে ভুল প্রতিক্রিয়া');
       }
 
     } catch (error) {
-      console.error('Sync Error:', error);
-      Alert.alert(
-        'Sync Failed',
-        error.message || 'Could not synchronize data. Please check your connection and try again.'
-      );
-      setStatusMessage('Sync failed. Please try again.');
+      console.error('সিঙ্ক ত্রুটি:', error);
+
+      let errorMessage = 'ডাটা সিঙ্ক করতে ব্যর্থ হয়েছে। অনুগ্রহ করে আপনার সংযোগ চেক করে আবার চেষ্টা করুন।';
+
+      if (error.message === 'ইন্টারনেট সংযোগ বিচ্ছিন্ন হয়েছে') {
+        errorMessage = 'ইন্টারনেট সংযোগ বিচ্ছিন্ন হয়েছে। অনুগ্রহ করে সংযোগ পুনরুদ্ধার করে আবার চেষ্টা করুন।';
+      } else if (error.code === 'ECONNABORTED') {
+        errorMessage = 'সার্ভারে সংযোগ করতে সময় লেগেছে। অনুগ্রহ করে আবার চেষ্টা করুন।';
+      } else if (error.response?.status === 401) {
+        errorMessage = 'প্রমাণীকরণ ব্যর্থ হয়েছে। অনুগ্রহ করে পুনরায় লগইন করুন।';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'সার্ভার সমস্যা। অনুগ্রহ করে কিছুক্ষণ পরে আবার চেষ্টা করুন।';
+      }
+
+      showSnackbar(errorMessage, 'error');
+      setStatusMessage('সিঙ্ক ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
       setSyncPercentage(0);
       setSyncCompleted(false);
     } finally {
@@ -275,26 +449,85 @@ const SyncPrevData = () => {
     }
   };
 
+  const getSnackbarColor = () => {
+    switch (snackbarType) {
+      case 'success':
+        return '#27AE60';
+      case 'error':
+        return '#E74C3C';
+      default:
+        return '#34495E';
+    }
+  };
+
+  const getConnectionIcon = () => {
+    if (!isConnected) {
+      return <Icon name="wifi-off" size={18} color="#E74C3C" />;
+    }
+    if (connectionType === 'wifi') {
+      return <Icon name="wifi" size={18} color="#27AE60" />;
+    }
+    if (connectionType === 'cellular') {
+      return <Icon name="cellphone-wireless" size={18} color="#27AE60" />;
+    }
+    return <Icon name="wifi" size={18} color="#7F8C8D" />;
+  };
+
+  const getConnectionText = () => {
+    if (!isConnected) {
+      return 'সংযোগ বিচ্ছিন্ন';
+    }
+    if (connectionType === 'wifi') {
+      return 'ওয়াইফাই সংযুক্ত';
+    }
+    if (connectionType === 'cellular') {
+      return 'মোবাইল ডাটা সংযুক্ত';
+    }
+    return 'সংযুক্ত';
+  };
+
   return (
     <LinearGradient colors={['#F4F7FB', '#E0EAEF']} style={styles.container}>
+      {/* Internet Connection Status Bar */}
+      <View style={[
+        styles.connectionBar,
+        !isConnected && styles.connectionBarDisconnected
+      ]}>
+        {getConnectionIcon()}
+        <Text style={[
+          styles.connectionText,
+          !isConnected && styles.connectionTextDisconnected
+        ]}>
+          {getConnectionText()}
+        </Text>
+        {isConnected && connectionType && (
+          <View style={styles.connectionSpeedIndicator}>
+            <View style={[styles.speedDot, { backgroundColor: '#27AE60' }]} />
+          </View>
+        )}
+      </View>
+
       <View style={styles.header}>
-        <Text style={styles.title}>Data Sync</Text>
-        <Text style={styles.subtitle}>Keep your records fully up-to-date across all of your devices securely.</Text>
+        <Text style={styles.title}>ডাটা সিঙ্ক</Text>
+        <Text style={styles.subtitle}>
+          আপনার সমস্ত ডিভাইস জুড়ে নিরাপদে আপনার রেকর্ড সম্পূর্ণ আপ-টু-ডেট রাখুন।
+        </Text>
       </View>
 
       <View style={styles.centerContent}>
-        {/* Progress Circle / Main Button */}
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={startSync}
-          disabled={isSyncing || syncCompleted}
+          disabled={isSyncing || syncCompleted || !isConnected}
         >
           <Animated.View style={[
             styles.syncButtonContainer,
-            { transform: [{ scale: pulseAnim }] }
+            { transform: [{ scale: pulseAnim }] },
+            (!isConnected) && styles.syncButtonDisabled
           ]}>
             <LinearGradient
-              colors={syncCompleted ? ['#2ECC71', '#27AE60'] : ['#00A8A8', '#80D9D9']}
+              colors={syncCompleted ? ['#2ECC71', '#27AE60'] :
+                (!isConnected ? ['#95A5A6', '#7F8C8D'] : ['#00A8A8', '#80D9D9'])}
               style={styles.syncButtonBackground}
             >
               {isSyncing ? (
@@ -305,13 +538,13 @@ const SyncPrevData = () => {
                   <Text style={styles.percentageText}>{syncPercentage}%</Text>
                 </>
               ) : (
-                <Icon name={syncCompleted ? "check-all" : "cloud-sync"} size={70} color="#FFFFFF" />
+                <Icon name={syncCompleted ? "check-all" : (!isConnected ? "wifi-off" : "cloud-sync")}
+                  size={70} color="#FFFFFF" />
               )}
             </LinearGradient>
           </Animated.View>
         </TouchableOpacity>
 
-        {/* Linear Progress Bar below the main button */}
         {isSyncing && (
           <View style={styles.progressBarContainer}>
             <View style={[styles.progressBarFill, { width: `${syncPercentage}%` }]} />
@@ -319,25 +552,41 @@ const SyncPrevData = () => {
         )}
 
         <View style={[styles.statusContainer, !isSyncing && { marginTop: 46 }]}>
-          <Text style={[styles.statusMessage, syncCompleted && { color: '#27AE60', fontWeight: 'bold' }]}>
+          <Text style={[
+            styles.statusMessage,
+            syncCompleted && { color: '#27AE60', fontWeight: 'bold' },
+            !isConnected && { color: '#E74C3C' }
+          ]}>
             {statusMessage}
           </Text>
         </View>
       </View>
 
-      {/* Show reset option only after complete */}
       {syncCompleted && (
         <TouchableOpacity
           style={styles.resetButton}
           onPress={() => {
             setSyncCompleted(false);
             setSyncPercentage(0);
-            setStatusMessage('Ready to sync');
+            setStatusMessage('সিঙ্কের জন্য প্রস্তুত');
           }}
         >
           <Icon name="refresh" size={20} color="#4776E6" style={{ marginRight: 6 }} />
-          <Text style={styles.resetButtonText}>Sync Again</Text>
+          <Text style={styles.resetButtonText}>পুনরায় সিঙ্ক করুন</Text>
         </TouchableOpacity>
+      )}
+
+      {/* Snackbar */}
+      {snackbarVisible && (
+        <View style={[styles.snackbar, { backgroundColor: getSnackbarColor() }]}>
+          <Icon
+            name={snackbarType === 'success' ? 'check-circle' : (snackbarType === 'error' ? 'alert-circle' : 'information')}
+            size={20}
+            color="#FFFFFF"
+            style={styles.snackbarIcon}
+          />
+          <Text style={styles.snackbarText}>{snackbarMessage}</Text>
+        </View>
       )}
     </LinearGradient>
   );
@@ -348,8 +597,38 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 24,
   },
+  connectionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(39, 174, 96, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  connectionBarDisconnected: {
+    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+  },
+  connectionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#27AE60',
+    marginLeft: 8,
+  },
+  connectionTextDisconnected: {
+    color: '#E74C3C',
+  },
+  connectionSpeedIndicator: {
+    marginLeft: 8,
+  },
+  speedDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   header: {
-    marginTop: 60,
     marginBottom: 40,
     alignItems: 'center',
   },
@@ -384,6 +663,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 24,
     elevation: 15,
+  },
+  syncButtonDisabled: {
+    opacity: 0.6,
   },
   syncButtonBackground: {
     flex: 1,
@@ -438,6 +720,32 @@ const styles = StyleSheet.create({
     color: '#4776E6',
     fontSize: 16,
     fontWeight: '700',
+  },
+  snackbar: {
+    position: 'absolute',
+    bottom: 30,
+    left: 20,
+    right: 20,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 999,
+  },
+  snackbarIcon: {
+    marginRight: 10,
+  },
+  snackbarText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
   },
 });
 

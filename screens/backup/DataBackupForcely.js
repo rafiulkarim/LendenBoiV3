@@ -9,7 +9,8 @@ import {
   Animated,
   Dimensions,
   ScrollView,
-  Modal
+  Modal,
+  BackHandler
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
@@ -45,7 +46,7 @@ const colors = {
   gray900: '#111827',
 };
 
-const DataBackupForcely = () => {
+const DataBackupForcely = ({ navigation }) => {
   const { myToken } = useContext(AuthContext)
   const [loading, setLoading] = useState(false);
   const [lastSync, setLastSync] = useState(null);
@@ -66,6 +67,18 @@ const DataBackupForcely = () => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
+
+  const backAction = () => {
+    navigation.replace('Welcome');
+  }
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction,
+    );
+    return () => backHandler.remove();
+  }, []);
 
   useEffect(() => {
     loadLastSync();
