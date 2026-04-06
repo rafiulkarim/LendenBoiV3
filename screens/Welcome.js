@@ -107,7 +107,7 @@ const Welcome = ({ navigation }) => {
 
     db.transaction(tx => {
       tx.executeSql(
-        'SELECT * FROM clients WHERE shop_id = ? ORDER BY updated_at DESC LIMIT 100',
+        'SELECT * FROM clients WHERE shop_id = ? ORDER BY updated_at DESC LIMIT 50',
         [logedInUserInfo.shop[0].id],
         (tx, results) => {
           const rows = results.rows.raw();

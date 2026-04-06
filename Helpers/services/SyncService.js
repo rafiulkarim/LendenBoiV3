@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { openDatabase } from 'react-native-sqlite-storage';
 import { BASE_URL } from '../../env';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 
 // ─────────────────────────────────────────────
@@ -130,7 +131,7 @@ export const syncData = async (token, onProgress) => {
       name: c.name,
       shop_id: c.shop_id,
       phone_no: c.phone_no,
-      picture: c.picture ?? '',
+      // picture: c.picture ?? '',
       address: c.address ?? '',
       amount: c.amount,
       amount_type: c.amount_type,
@@ -144,7 +145,7 @@ export const syncData = async (token, onProgress) => {
     ledgers: ledgers.map(l => ({
       id: l.slug ?? l.id,
       shop_id: l.shop_id,
-      client_id: l.client_slug ?? l.client_id,
+      client_id: l.client_id,
       transaction_type: l.transaction_type,
       transaction_date: l.transaction_date,
       amount: l.amount,
@@ -156,7 +157,7 @@ export const syncData = async (token, onProgress) => {
     })),
 
     shortages: shortages.map(s => ({
-      id: s.slug ?? s.id,
+      id: s.id,
       shop_id: s.shop_id,
       title: s.title,
       status: s.status,
@@ -165,7 +166,7 @@ export const syncData = async (token, onProgress) => {
     })),
 
     expenses: expenses.map(e => ({
-      id: e.slug ?? e.id,
+      id: e.id,
       shop_id: e.shop_id,
       title: e.title,
       amount: e.amount,
@@ -218,6 +219,7 @@ export const syncData = async (token, onProgress) => {
   ]);
 
   report(100, 'সিঙ্ক সম্পন্ন হয়েছে ✓');
+  await AsyncStorage.setItem('last_sync_at', new Date().toISOString());
 
   console.log(`✅ Sync complete — clients: ${clients.length}, ledgers: ${ledgers.length}, shortages: ${shortages.length}, expenses: ${expenses.length}`);
 

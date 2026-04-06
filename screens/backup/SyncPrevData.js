@@ -18,6 +18,7 @@ import { openDatabase } from 'react-native-sqlite-storage';
 import InitBackgroundSync from './InitBackgroundSync';
 import { syncData } from '../../Helpers/services/SyncService';
 import NetInfo from '@react-native-community/netinfo';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 
 const { width } = Dimensions.get('window');
@@ -276,8 +277,10 @@ const SyncPrevData = ({ navigation }) => {
         timeout: 10000,
       });
 
+      let perPageDataSize = 10;
+
       if (response && response?.data?.code === 200) {
-        const totalPage = Math.ceil(response?.data?.data?.count / 5);
+        const totalPage = Math.ceil(response?.data?.data?.count / perPageDataSize);
         console.log('মোট পৃষ্ঠা:', totalPage);
 
         setSyncPercentage(15);
@@ -298,7 +301,7 @@ const SyncPrevData = ({ navigation }) => {
 
           const insertDataResponse = await axios.post(`${BASE_URL}/insert-data`, {
             page: i,
-            per_page: 5
+            per_page: perPageDataSize
           }, {
             headers: {
               'Content-Type': 'application/json',
@@ -421,6 +424,7 @@ const SyncPrevData = ({ navigation }) => {
         setStatusMessage('সিঙ্ক সম্পূর্ণ! সমস্ত ডাটা সফলভাবে সিঙ্ক হয়েছে।');
         setSyncCompleted(true);
         showSnackbar('সিঙ্ক সফলভাবে সম্পন্ন হয়েছে! সমস্ত ডাটা আপডেট করা হয়েছে', 'success');
+        await AsyncStorage.setItem('last_sync_at', new Date().toISOString());
       } else {
         throw new Error('সার্ভার থেকে ভুল প্রতিক্রিয়া');
       }
@@ -551,7 +555,7 @@ const SyncPrevData = ({ navigation }) => {
           </View>
         )}
 
-        <View style={[styles.statusContainer, !isSyncing && { marginTop: 46 }]}>
+        {/* <View style={[styles.statusContainer, !isSyncing && { marginTop: 46 }]}>
           <Text style={[
             styles.statusMessage,
             syncCompleted && { color: '#27AE60', fontWeight: 'bold' },
@@ -559,7 +563,7 @@ const SyncPrevData = ({ navigation }) => {
           ]}>
             {statusMessage}
           </Text>
-        </View>
+        </View> */}
       </View>
 
       {syncCompleted && (
