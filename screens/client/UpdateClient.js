@@ -8,7 +8,8 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
-  Linking
+  Linking,
+  BackHandler
 } from 'react-native';
 import {
   Appbar,
@@ -59,6 +60,7 @@ const colors = {
 const SaleAndReceiveDetails = ({ route, navigation }) => {
   const { logedInUserInfo } = useContext(AuthContext);
   const clientId = route.params.clientId;
+  const clientName = route.params.clientName;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [clientData, setClientData] = useState(null);
@@ -69,6 +71,22 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarType, setSnackbarType] = useState('success');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const backAction = () => {
+      navigation.replace('SaleAndReceive', {
+        clientId: clientId
+      })
+      return true
+    }
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    )
+
+    return () => backHandler.remove()
+  }, [])
 
   // Form state
   const [formData, setFormData] = useState({
@@ -375,10 +393,13 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
           <Appbar.Header style={styles.header}>
             <Appbar.BackAction
               color="#fff"
-              onPress={() => navigation.goBack()}
+              onPress={() => navigation.replace('SaleAndReceive', {
+                clientId: clientId,
+                clientName: clientName
+              })}
             />
             <Appbar.Content
-              title="লেনদেনের বিবরণ"
+              title={"ক্লায়েন্ট আপডেট"}
               color="#fff"
             />
             {!loading && clientData && (

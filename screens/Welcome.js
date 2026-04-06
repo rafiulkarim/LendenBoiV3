@@ -430,7 +430,8 @@ const Welcome = ({ navigation }) => {
               icon="logout"
               iconColor="#fff"
               size={24}
-              onPress={() => navigation.navigate('Schema')}
+              onPress={() => singOut()}
+            // onPress={() => navigation.navigate('Schema')}
             />
           </View>
 

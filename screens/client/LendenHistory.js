@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, BackHandler } from 'react-native'
 import { Appbar } from 'react-native-paper';
 import { openDatabase } from 'react-native-sqlite-storage';
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
@@ -29,6 +29,23 @@ const LendenHistory = ({ navigation, route }) => {
   const clientData = route.params.clientData
   const [loading, setLoading] = useState(true)
   const [transactions, setTransactions] = useState([])
+
+  useEffect(() => {
+    const backAction = () => {
+      navigation.replace('SaleAndReceive', {
+        clientId: clientId,
+        clientName: clientName
+      })
+      return true
+    }
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    )
+
+    return () => backHandler.remove()
+  }, [])
 
   const fetchClientTransactions = () => {
     setLoading(true);
@@ -152,7 +169,10 @@ const LendenHistory = ({ navigation, route }) => {
       <Appbar.Header style={{ backgroundColor: colors.primary }}>
         <Appbar.BackAction
           color="#fff"
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.replace('SaleAndReceive', {
+            clientId: clientId,
+            clientName: clientName
+          })}
         />
         <Appbar.Content
           title={clientName}

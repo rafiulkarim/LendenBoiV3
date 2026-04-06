@@ -496,7 +496,7 @@ const ShortageList = ({ navigation }) => {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <SafeAreaView style={styles.container}>
           <Appbar.Header style={styles.header}>
-            <Appbar.BackAction color="#fff" onPress={() => navigation.goBack()} />
+            <Appbar.BackAction color="#fff" onPress={() => navigation.replace('Welcome')} />
             <Appbar.Content title="শর্টেজ লিস্ট" color="#fff" />
           </Appbar.Header>
           <View style={styles.loadingContainer}>
@@ -514,7 +514,7 @@ const ShortageList = ({ navigation }) => {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <SafeAreaView style={styles.container}>
           <Appbar.Header style={styles.header}>
-            <Appbar.BackAction color="#fff" onPress={() => navigation.goBack()} />
+            <Appbar.BackAction color="#fff" onPress={() => navigation.replace('Welcome')} />
             <Appbar.Content title="শর্টেজ লিস্ট" color="#fff" />
             <Appbar.Action
               icon="plus"

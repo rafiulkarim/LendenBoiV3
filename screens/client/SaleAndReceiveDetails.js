@@ -6,7 +6,8 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  BackHandler
 } from 'react-native';
 import {
   Appbar,
@@ -50,6 +51,20 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
   const clientId = route.params.clientId;
   const [loading, setLoading] = useState(true);
   const [clientData, setClientData] = useState(null)
+
+  useEffect(() => {
+    const backAction = () => {
+      navigation.replace('Welcome')
+      return true
+    }
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    )
+
+    return () => backHandler.remove()
+  }, [])
 
   const fetchClientData = () => {
     setLoading(true);

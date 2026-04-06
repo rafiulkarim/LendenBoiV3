@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   ScrollView,
   RefreshControl,
-  FlatList
+  FlatList,
+  BackHandler
 } from 'react-native';
 import {
   Appbar,
@@ -129,6 +130,20 @@ const ExpenseList = ({ navigation }) => {
     { label: 'সবচেয়ে বেশি', value: 'amount_desc', icon: 'sort-numeric-descending' },
     { label: 'সবচেয়ে কম', value: 'amount_asc', icon: 'sort-numeric-ascending' },
   ];
+
+  useEffect(() => {
+    const backAction = () => {
+      navigation.replace('Welcome')
+      return true
+    }
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    )
+
+    return () => backHandler.remove()
+  }, [])
 
   useEffect(() => { loadInitialData(); }, []);
   useEffect(() => { calculateSummary(); }, [expenses]);
@@ -784,7 +799,7 @@ const ExpenseList = ({ navigation }) => {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <SafeAreaView style={styles.container}>
           <Appbar.Header style={styles.header}>
-            <Appbar.BackAction color="#fff" onPress={() => navigation.goBack()} />
+            <Appbar.BackAction color="#fff" onPress={() => navigation.replace('Welcome')} />
             <Appbar.Content title="খরচের তালিকা" color="#fff" />
           </Appbar.Header>
           <View style={styles.loadingContainer}>
@@ -801,7 +816,7 @@ const ExpenseList = ({ navigation }) => {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <SafeAreaView style={styles.container}>
           <Appbar.Header style={styles.header}>
-            <Appbar.BackAction color="#fff" onPress={() => navigation.goBack()} />
+            <Appbar.BackAction color="#fff" onPress={() => navigation.replace('Welcome')} />
             <Appbar.Content title="খরচের তালিকা" color="#fff" />
             <Appbar.Action icon="plus" color="#fff" onPress={() => setFormVisible(true)} />
           </Appbar.Header>

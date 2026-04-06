@@ -12,6 +12,7 @@ import {
   Platform,
   ActivityIndicator,
   RefreshControl,
+  BackHandler
 } from 'react-native';
 import {
   Avatar,
@@ -72,6 +73,20 @@ const ClientList = ({ route, navigation }) => {
   const searchTimeoutRef = useRef(null);
   const flatListRef = useRef(null);
   const isMounted = useRef(true);
+
+  useEffect(() => {
+    const backAction = () => {
+      navigation.replace('Welcome')
+      return true
+    }
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    )
+
+    return () => backHandler.remove()
+  }, [])
 
   // ✅ Sync local + global searching state together
   const updateSearching = useCallback((value) => {

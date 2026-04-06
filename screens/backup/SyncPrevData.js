@@ -74,15 +74,17 @@ const SyncPrevData = ({ navigation }) => {
     setTimeout(() => setSnackbarVisible(false), 3000);
   };
 
-  const backAction = () => {
-    navigation.replace('Welcome');
-  }
-
   useEffect(() => {
+    const backAction = () => {
+      navigation.replace('Welcome');
+      return true;
+    }
+
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       backAction,
     );
+
     return () => backHandler.remove();
   }, []);
 

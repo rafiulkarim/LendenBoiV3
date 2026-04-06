@@ -13,7 +13,8 @@ import {
   Modal,
   NativeModules,
   ActivityIndicator,
-  Linking
+  Linking,
+  BackHandler
 } from 'react-native';
 import {
   Appbar,
@@ -92,6 +93,20 @@ const SaleAndReceive = ({ navigation, route }) => {
   // Tooltip state
   const [showMenuModal, setShowMenuModal] = useState(false);
   const menuModalRef = useRef(null);
+
+  useEffect(() => {
+    const backAction = () => {
+      navigation.replace('Welcome')
+      return true
+    }
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    )
+
+    return () => backHandler.remove()
+  }, [])
 
   // Menu options handlers
   const handleViewDetails = () => {
@@ -898,10 +913,10 @@ const SaleAndReceive = ({ navigation, route }) => {
         <Appbar.Header style={{ backgroundColor: colors.primary }}>
           <Appbar.BackAction
             color="#fff"
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.replace('Welcome')}
           />
           <Appbar.Content
-            title={clientName || "Client Details"}
+            title={clientName || "ক্লায়েন্টের বিবরণ"}
             color="#fff"
           />
           <Appbar.Action
@@ -942,7 +957,8 @@ const SaleAndReceive = ({ navigation, route }) => {
                     <TouchableOpacity
                       style={styles.menuModalItem}
                       onPress={() => navigation.navigate('UpdateClient', {
-                        clientId: clientId
+                        clientId: clientId,
+                        clientName: clientData.name
                       })}
                       activeOpacity={0.7}
                     >
@@ -1034,7 +1050,7 @@ const SaleAndReceive = ({ navigation, route }) => {
                     )}
 
                     {/* Send Message */}
-                    {clientData?.phone_no && (
+                    {/* {clientData?.phone_no && (
                       <TouchableOpacity
                         style={styles.menuModalItem}
                         onPress={() => {
@@ -1067,7 +1083,7 @@ const SaleAndReceive = ({ navigation, route }) => {
                         </View>
                         <Icon name="chevron-right" size={20} color="#ccc" />
                       </TouchableOpacity>
-                    )}
+                    )} */}
                   </View>
 
                   {/* Footer Actions */}
@@ -1114,7 +1130,7 @@ const SaleAndReceive = ({ navigation, route }) => {
                       }
                     </Text>
                     {
-                      clientData.phone_no != '' ?
+                      clientData.phone_no != '' && clientData.phone_no != null ?
                         <Text style={{}}>
                           <TouchableOpacity onPress={() => {
                             if (clientData.phone_no) {

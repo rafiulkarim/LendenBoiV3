@@ -12,7 +12,8 @@ import {
   FlatList,
   Modal,
   NativeModules,
-  ActivityIndicator
+  ActivityIndicator,
+  BackHandler
 } from 'react-native';
 import {
   Appbar,
@@ -111,6 +112,20 @@ export default function AddClient({ navigation }) {
   const dismissKeyboard = () => {
     Keyboard.dismiss();
   };
+
+  useEffect(() => {
+    const backAction = () => {
+      navigation.replace('Welcome')
+      return true
+    }
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    )
+
+    return () => backHandler.remove()
+  }, [])
 
   // Show snackbar message
   const showSnackbar = (message, type = 'success') => {
@@ -598,7 +613,7 @@ export default function AddClient({ navigation }) {
                     resetForm();
 
                     setTimeout(() => {
-                      navigation.replace('Welcome');
+                      navigation.replace('ClientList');
                     }, 2000);
                   },
                   (tx, ledgerError) => {
@@ -612,7 +627,7 @@ export default function AddClient({ navigation }) {
 
                     resetForm();
                     setTimeout(() => {
-                      navigation.replace('Welcome');
+                      navigation.replace('ClientList');
                     }, 2000);
                   }
                 );
@@ -639,7 +654,7 @@ export default function AddClient({ navigation }) {
 
                 resetForm();
                 setTimeout(() => {
-                  navigation.replace('Welcome');
+                  navigation.replace('ClientList');
                 }, 2000);
               } else {
                 setIsSubmitting(false);
@@ -924,7 +939,7 @@ export default function AddClient({ navigation }) {
           <Appbar.BackAction
             color="#fff"
             onPress={() => {
-              navigation.navigate('Welcome')
+              navigation.navigate('ClientList')
             }}
           />
           <Appbar.Content

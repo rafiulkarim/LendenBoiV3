@@ -70,6 +70,7 @@ const DataBackupForcely = ({ navigation }) => {
 
   const backAction = () => {
     navigation.replace('Welcome');
+    return true;
   }
 
   useEffect(() => {

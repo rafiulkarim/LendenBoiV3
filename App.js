@@ -23,7 +23,7 @@ import GroupTagada from './screens/GroupTagada';
 import ExpenseList from './screens/expense/ExpenseList';
 import AddExpense from './screens/expense/AddExpense';
 
-import PersistentAdBanner from './screens/components/PersistentAdBanner';
+// import PersistentAdBanner from './screens/components/PersistentAdBanner';
 import BottomMenu from './screens/components/BottomMenu';
 import { TestIds } from 'react-native-google-mobile-ads';
 import DataBackupForcely from './screens/backup/DataBackupForcely';
@@ -171,7 +171,7 @@ export default function App({ navigation }) {
           </View>
 
           <View style={styles.bottomBar}>
-            <PersistentAdBanner />
+            {/* <PersistentAdBanner /> */}
             {showBottomMenu && (
               <BottomMenu
                 activeTab={activeTab}
