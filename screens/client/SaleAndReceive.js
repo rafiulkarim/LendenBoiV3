@@ -210,7 +210,7 @@ const SaleAndReceive = ({ navigation, route }) => {
                   simData.displayName,
                   simData.subscriptionId || null,
                   simData.isNoSimOption ? 1 : 0,
-                  moment().format('YYYY-MM-DD HH:mm:ss'),
+                  moment().utcOffset('+06:00').locale('en').format('YYYY-MM-DD HH:mm:ss'),
                   logedInUserInfo?.shop[0]?.id
                 ],
                 (tx, updateResults) => {
@@ -236,8 +236,8 @@ const SaleAndReceive = ({ navigation, route }) => {
                   simData.displayName,
                   simData.subscriptionId || null,
                   simData.isNoSimOption ? 1 : 0,
-                  moment().format('YYYY-MM-DD HH:mm:ss'),
-                  moment().format('YYYY-MM-DD HH:mm:ss')
+                  moment().utcOffset('+06:00').locale('en').format('YYYY-MM-DD HH:mm:ss'),
+                  moment().utcOffset('+06:00').locale('en').format('YYYY-MM-DD HH:mm:ss')
                 ],
                 (tx, insertResults) => {
                   console.log('SIM selection saved to database');
@@ -561,8 +561,8 @@ const SaleAndReceive = ({ navigation, route }) => {
             logedInUserInfo?.id,
             logedInUserInfo?.shop[0]?.id,
             "No",
-            moment().locale('en').format('YYYY-MM-DD HH:mm:ss'),
-            moment().locale('en').format('YYYY-MM-DD HH:mm:ss')
+            moment().utcOffset('+06:00').locale('en').format('YYYY-MM-DD HH:mm:ss'),
+            moment().utcOffset('+06:00').locale('en').format('YYYY-MM-DD HH:mm:ss')
           ],
           async (tx, ledgerResult) => {
             console.log('dilam amount submited')
@@ -587,8 +587,8 @@ const SaleAndReceive = ({ navigation, route }) => {
             logedInUserInfo?.id,
             logedInUserInfo?.shop[0]?.id,
             "No",
-            moment().locale('en').format('YYYY-MM-DD HH:mm:ss'),
-            moment().locale('en').format('YYYY-MM-DD HH:mm:ss')
+            moment().utcOffset('+06:00').locale('en').format('YYYY-MM-DD HH:mm:ss'),
+            moment().utcOffset('+06:00').locale('en').format('YYYY-MM-DD HH:mm:ss')
           ],
           async (tx, ledgerResult) => {
             console.log('dilam amount submited')
@@ -644,7 +644,7 @@ const SaleAndReceive = ({ navigation, route }) => {
 
           tx.executeSql(
             'UPDATE clients SET updated_at = ?, amount = ?, amount_type = ?, sync_status = ?  WHERE id = ?',
-            [moment().locale('en').format('YYYY-MM-DD HH:mm:ss'), dueOrAdvanceAmount, dueOrAdvance, "No", clientId],
+            [moment().utcOffset('+06:00').locale('en').format('YYYY-MM-DD HH:mm:ss'), dueOrAdvanceAmount, dueOrAdvance, "No", clientId],
             async (tx, results) => {
               if (results.rowsAffected > 0) {
                 console.log('First record updated');

@@ -331,7 +331,7 @@ const SaleAndReceiveDetails = ({ route, navigation }) => {
     db.transaction(tx => {
       tx.executeSql(
         'UPDATE clients SET name = ?, phone_no = ?, address = ?, type = ?, updated_at = ?, sync_status = ? WHERE id = ?',
-        [formData.name.trim(), formData.phone_no.trim(), formData.address.trim(), formData.type, moment().format('YYYY-MM-DD HH:mm:ss'), "No", clientId],
+        [formData.name.trim(), formData.phone_no.trim(), formData.address.trim(), formData.type, moment().utcOffset('+06:00').locale('en').format('YYYY-MM-DD HH:mm:ss'), "No", clientId],
         (tx, results) => {
           setSaving(false);
           if (results.rowsAffected > 0) {

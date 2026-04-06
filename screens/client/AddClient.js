@@ -506,7 +506,7 @@ export default function AddClient({ navigation }) {
       openingBalance: openingBalance ? parseFloat(openingBalance) : 0,
       openingBalanceType,
       notes: notes.trim() || null,
-      createdAt: moment().locale('en').format('YYYY-MM-DD HH:mm:ss')
+      createdAt: moment().utcOffset('+06:00').locale('en').format('YYYY-MM-DD HH:mm:ss')
     };
 
     console.log(clientData)
