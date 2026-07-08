@@ -28,7 +28,7 @@ import { openDatabase } from 'react-native-sqlite-storage';
 const db = openDatabase({ name: 'lenden_boi.db', createFromLocation: 1 });
 import moment from 'moment';
 import Drawer from './components/Drawer';
-import InitBackgroundSync from './backup/InitBackgroundSync';
+import InitBackgroundSync, { runHeadLessSync } from './backup/InitBackgroundSync';
 import { CheckOnlineData } from './backup/CheckOnlineData';
 
 const { width } = Dimensions.get('window');
@@ -194,6 +194,7 @@ const Welcome = ({ navigation }) => {
 
   useEffect(() => {
     InitBackgroundSync(myToken);
+    // runHeadLessSync()
     CheckOnlineData(myToken, navigation)
   }, []);
 

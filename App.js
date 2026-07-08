@@ -27,7 +27,7 @@ import AddExpense from './screens/expense/AddExpense';
 import BottomMenu from './screens/components/BottomMenu';
 import { TestIds } from 'react-native-google-mobile-ads';
 import DataBackupForcely from './screens/backup/DataBackupForcely';
-import InitBackgroundSync from './screens/backup/InitBackgroundSync';
+import InitBackgroundSync, { InitBackgroundHeadLessSync, runHeadLessSync } from './screens/backup/InitBackgroundSync';
 import SyncPrevData from './screens/backup/SyncPrevData';
 
 // ✅ Added drawerOpen + setDrawerOpen to context
@@ -53,6 +53,11 @@ export default function App({ navigation }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const navigationRef = useRef(null);
+
+  useEffect(() => {
+    // runHeadLessSync()
+    InitBackgroundHeadLessSync()
+  }, [])
 
   useEffect(() => {
     const checkAuthState = async () => {
